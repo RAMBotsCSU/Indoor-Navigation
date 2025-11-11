@@ -7,9 +7,9 @@ from PyQt6.QtGui import QImage, QPen, QPainterPath
 from PyQt6.QtCore import QPointF
 import heapq, math
 
-red_threshold = 250
-green_threshold = 250
-blue_threshold = 250
+red_threshold = 20
+green_threshold = 20
+blue_threshold = 20
 
 class GPSMapViewer(QGraphicsView):
     def __init__(self, map_path, bbox):
@@ -30,9 +30,9 @@ class GPSMapViewer(QGraphicsView):
         self.marker.setBrush(QBrush(QColor("red")))
         self.scene.addItem(self.marker)
 
-        # 40.57579702201656, -105.08348366394911
-        self.lat = 40.57579702201656
-        self.lon = -105.08348366394911
+        # 40.575778935543234, -105.08325487374624
+        self.lat = 40.575778935543234
+        self.lon = -105.08325487374624
         self.update_marker()
 
         # simulated gps updates
@@ -219,11 +219,11 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     # From image - (min_lat, max_lat, min_lon, max_lon)
-    # Top right 40.575920, -105.084196
-    # Bottom left 40.575243, -105.082178
+    # Top right 40.57590353282978, -105.08415316215739
+    # Bottom left 40.57521493599895, -105.0821656452189
 
-    bbox = (40.575243, 40.575920, -105.084196, -105.082178)
+    bbox = (40.57521493599895, 40.57590353282978, -105.08415316215739, -105.0821656452189)
 
-    view = GPSMapViewer("bldg-map.svg", bbox)
+    view = GPSMapViewer("bldg-map.png", bbox)
     view.show()
     sys.exit(app.exec())
