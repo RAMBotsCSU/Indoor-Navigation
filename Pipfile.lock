@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "88363ab0f3aedb65ba286944585d601c4bfc29fa4c7b875958f55c200dbd5a3b"
+            "sha256": "c5e60a08a55cdd824e80f8f6a6f2c26782a4b9000c1b6a95495b87bb347a4618"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -16,6 +16,14 @@
         ]
     },
     "default": {
+        "adafruit-rplidar": {
+            "hashes": [
+                "sha256:199666db02162a53afe2e0fad3ba059bde9e3cf8b284e84d8d5f9f37d44c7673",
+                "sha256:d05236e7a95968030f1d52d6c4907d543bf5231a2576ee23d4f2a281a9728160"
+            ],
+            "index": "pypi",
+            "version": "==0.0.1"
+        },
         "certifi": {
             "hashes": [
                 "sha256:0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de",

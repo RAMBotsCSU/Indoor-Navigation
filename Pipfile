@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 requests = "*"
 pyqt6 = "*"
+adafruit-rplidar = "*"
 
 [dev-packages]
 

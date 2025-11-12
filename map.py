@@ -1,10 +1,7 @@
 from PyQt6.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QGraphicsEllipseItem
-from PyQt6.QtGui import QPixmap, QBrush, QColor
-from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QPixmap, QBrush, QColor, QImage, QPen, QPainterPath
+from PyQt6.QtCore import QTimer, QPointF
 import sys, random
-# Add imports needed for new features
-from PyQt6.QtGui import QImage, QPen, QPainterPath
-from PyQt6.QtCore import QPointF
 import heapq, math
 
 red_threshold = 20
