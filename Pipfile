@@ -7,6 +7,9 @@ name = "pypi"
 requests = "*"
 pyqt6 = "*"
 adafruit-rplidar = "*"
+pandas = "*"
+numpy = "*"
+matplotlib = "*"
 
 [dev-packages]
 
