@@ -1,6 +1,7 @@
+from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QGraphicsEllipseItem
 from PyQt6.QtGui import QPixmap, QBrush, QColor, QImage, QPen, QPainterPath
-from PyQt6.QtCore import QTimer, QPointF
+from PyQt6.QtCore import QTimer, QThread, pyqtSignal
 from adafruit_rplidar import RPLidar
 import sys, random
 import heapq, math, os
@@ -12,14 +13,59 @@ blue_threshold = 20
 PORT_NAME = '/dev/ttyUSB0' # usb device name
 max_distance = 0  # max LiDAR distance in mm
 
-class LiDAR():
+class LiDAR(QThread):
     def __init__(self):
         os.putenv('SDL_FBDEV', '/dev/fb1')
         self.lidar = RPLidar(None, PORT_NAME, timeout=7)
+        self.port = PORT_NAME
+        self._running = True
+        self.lidar = None
         self.scan_data = [0]*360
-        lidar_data=[]
         print(self.lidar.info)
+    
+    def run(self):
+        try:
+            self.lidar = RPLidar(None, self.port, timeout=3)
+            for scan in self.lidar.iter_scans():
+                if not self._running:
+                    break
+                scan_data = [0] * 360
+                for (_, angle, distance) in scan:
+                    scan_data[min(359, math.floor(angle))] = distance
+                self.scan_data = scan_data
+        except Exception as e:
+            print("Lidar worker error:", e)
+        finally:
+            try:
+                if self.lidar:
+                    self.lidar.stop()
+                    self.lidar.disconnect()
+            except Exception:
+                pass
+
+        def stop(self):
+            self._running = False
+            try:
+                if self.lidar:
+                    self.lidar.stop()
+                    self.lidar.disconnect()
+            except Exception:
+                pass
+            self.wait(2000)
         
+class Map(QGraphicsView):
+    def __init__(self, map_path, bbox):
+        super().__init__()
+        self.scene = QGraphicsScene()
+        self.setScene(self.scene)
+
+        # import map image
+        self.map_pixmap = QPixmap(map_path)
+        self.scene.addPixmap(self.map_pixmap)
+
+        # bounding box
+        # (min_lat, max_lat, min_lon, max_lon)
+        self.bbox = bbox
 
 
 class IndoorNavigationViewer(QGraphicsView):
@@ -127,13 +173,43 @@ class IndoorNavigationViewer(QGraphicsView):
         gy = min(max(gy, 0), self.grid_h - 1)
         return gx, gy
     
+class MainWindow(QtWidgets.QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("RamBOTs Autonomous Navigation")
+        self.scan_widget = ScanWidget(size=600)
+        self.setCentralWidget(self.scan_widget)
+
+        self.lidar_thread = LiDAR()
+        self.lidar_thread.start()
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_scan)
+        self.timer.start(100)
+
+    def update_scan(self):
+        scan_data = self.lidar_thread.scan_data
+        self.scan_widget.update_scan(scan_data)
+
+    def closeEvent(self, event):
+        self.lidar_thread.stop()
+        event.accept()
+
+
 
 def __main__():
     app = QApplication(sys.argv)
     lidar = LiDAR()
+    bbox = (40.57521493599895, 40.57590353282978, -105.08415316215739, -105.0821656452189)
     
-    # viewer = IndoorNavigationViewer("indoor_map.png", (37.4219999, 37.4229999, -122.0840575, -122.0830575), lidar)
-    # viewer.setWindowTitle("Indoor Navigation Viewer")
-    # viewer.resize(800, 600)
-    # viewer.show()
-    # sys.exit(app.exec())
+    viewer = IndoorNavigationViewer("bldg_map.png", bbox, lidar)
+    viewer.setWindowTitle("Indoor Navigation Viewer")
+    viewer.resize(800, 600)
+    viewer.show()
+    sys.exit(app.exec())
+
+    try :
+        lidar.start()
+        sys.exit(app.exec())
+    except KeyboardInterrupt:
+        lidar.stop()
