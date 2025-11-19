@@ -1,8 +1,12 @@
-from PyQt6 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore, QtGui
 from PyQt6.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QGraphicsEllipseItem
 from PyQt6.QtGui import QPixmap, QBrush, QColor, QImage, QPen, QPainterPath, QPainter
-from PyQt6.QtCore import QTimer, QThread, pyqtSignal
-from adafruit_rplidar import RPLidar
+from PyQt6.QtCore import QTimer, QThread, pyqtSignal, Qt
+try:
+    from adafruit_rplidar import RPLidar
+except Exception:
+    RPLidar = None
+
 import sys, random
 import heapq, math, os
 from math import cos, sin, pi, floor
@@ -16,25 +20,46 @@ max_distance = 0  # max LiDAR distance in mm
 
 class LiDAR(QThread):
     scan_ready = pyqtSignal(list)
-    def __init__(self):
-        os.putenv('SDL_FBDEV', '/dev/fb1')
-        self.lidar = RPLidar(None, PORT_NAME, timeout=7)
-        self.port = PORT_NAME
+    def __init__(self, port=PORT_NAME):
+        super().__init__()
+        # don't create hardware in constructor; do it in run()
+        self.port = port
         self._running = True
         self.lidar = None
         self.scan_data = [0]*360
-        print(self.lidar.info)
-    
+
     def run(self):
         try:
-            self.lidar = RPLidar(None, self.port, timeout=3)
-            for scan in self.lidar.iter_scans():
-                if not self._running:
-                    break
-                scan_data = [0] * 360
-                for (_, angle, distance) in scan:
-                    scan_data[min(359, math.floor(angle))] = distance
-                self.scan_data = scan_data
+            if RPLidar is not None:
+                self.lidar = RPLidar(None, self.port, timeout=3)
+                for scan in self.lidar.iter_scans():
+                    if not self._running:
+                        break
+                    scan_data = [0] * 360
+                    for (_, angle, distance) in scan:
+                        scan_data[min(359, math.floor(angle))] = distance
+                    self.scan_data = scan_data
+                    # Emit the latest scan for UI
+                    self.scan_ready.emit(self.scan_data)
+            else:
+                # fallback simulator loop if no hardware package available
+                angle_offset = 0.0
+                while self._running:
+                    scan = [0] * 360
+                    for a in range(360):
+                        a_rel = (a + angle_offset) % 360
+                        d = 0
+                        if 45 < a_rel < 55:
+                            d = 2000
+                        if 225 < a_rel < 235:
+                            d = 2500
+                        if random.random() < 0.01:
+                            d = random.randint(300, 4000)
+                        scan[a] = d
+                    self.scan_data = scan
+                    self.scan_ready.emit(self.scan_data)
+                    angle_offset += 2.0
+                    self.msleep(50)
         except Exception as e:
             print("Lidar worker error:", e)
         finally:
@@ -45,15 +70,16 @@ class LiDAR(QThread):
             except Exception:
                 pass
 
-        def stop(self):
-            self._running = False
-            try:
-                if self.lidar:
-                    self.lidar.stop()
-                    self.lidar.disconnect()
-            except Exception:
-                pass
-            self.wait(2000)
+    def stop(self):
+        self._running = False
+        try:
+            if self.lidar:
+                self.lidar.stop()
+                self.lidar.disconnect()
+        except Exception:
+            pass
+        # wait for thread to finish gracefully
+        self.wait(2000)
 
 
 class ScanWidget(QtWidgets.QWidget):
@@ -204,42 +230,72 @@ class IndoorNavigationViewer(QGraphicsView):
         return gx, gy
     
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self):
+    def __init__(self, lidar, map_path="bldg_map.png", bbox=None):
         super().__init__()
         self.setWindowTitle("RamBOTs Autonomous Navigation")
-        self.scan_widget = ScanWidget(size=600)
-        self.setCentralWidget(self.scan_widget)
 
-        self.lidar_thread = LiDAR()
-        self.lidar_thread.start()
+        # create map viewer as central widget
+        if bbox is None:
+            bbox = (40.57521493599895, 40.57590353282978, -105.08415316215739, -105.0821656452189)
+        self.viewer = IndoorNavigationViewer(map_path, bbox, lidar)
+        self.setCentralWidget(self.viewer)
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_scan)
-        self.timer.start(100)
+        # create scan widget overlay as child of the viewer's viewport so it sits on top
+        self.scan_widget = ScanWidget(self.viewer, size=160)
+        # ensure it is visible and above the view
+        self.scan_widget.setWindowFlags(self.scan_widget.windowFlags() | Qt.WindowType.SubWindow)
+        self.scan_widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
+        self.scan_widget.show()
+        self._overlay_margin = 10
 
-    def update_scan(self):
-        scan_data = self.lidar_thread.scan_data
-        self.scan_widget.update_scan(scan_data)
+        # lidar worker connection
+        self.worker = lidar
+        self.worker.scan_ready.connect(self.scan_widget.update_scan)
+        self.worker.start()
+
+        # initial placement
+        self._position_overlay()
+
+    def _position_overlay(self):
+        # position scan_widget at top-right of the viewer viewport with margin
+        vp = self.viewer.viewport()
+        if not vp:
+            return
+        vw = vp.width()
+        vh = vp.height()
+        sw = self.scan_widget.width()
+        sx = max(0, vw - sw - self._overlay_margin)
+        sy = self._overlay_margin
+        # move relative to viewport coordinates
+        self.scan_widget.setParent(vp)
+        self.scan_widget.move(sx, sy)
+        self.scan_widget.raise_()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # reposition overlay after resize
+        QtCore.QTimer.singleShot(0, self._position_overlay)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        QtCore.QTimer.singleShot(0, self._position_overlay)
 
     def closeEvent(self, event):
-        self.lidar_thread.stop()
+        try:
+            self.worker.stop()
+        except Exception:
+            pass
         event.accept()
-
 
 
 def __main__():
     app = QApplication(sys.argv)
     lidar = LiDAR()
-    bbox = (40.57521493599895, 40.57590353282978, -105.08415316215739, -105.0821656452189)
     
-    viewer = IndoorNavigationViewer("bldg_map.png", bbox, lidar)
-    viewer.setWindowTitle("Indoor Navigation Viewer")
-    viewer.resize(800, 600)
-    viewer.show()
+    bbox = (40.57521493599895, 40.57590353282978, -105.08415316215739, -105.0821656452189)
+    win = MainWindow(lidar, map_path="bldg_map.png", bbox=bbox)
+    win.show()
     sys.exit(app.exec())
 
-    try :
-        lidar.start()
-        sys.exit(app.exec())
-    except KeyboardInterrupt:
-        lidar.stop()
+if __name__ == "__main__":
+    __main__()
