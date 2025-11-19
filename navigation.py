@@ -1,10 +1,11 @@
-from PyQt6 import QtWidgets
+from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtWidgets import QApplication, QGraphicsView, QGraphicsScene, QGraphicsEllipseItem
-from PyQt6.QtGui import QPixmap, QBrush, QColor, QImage, QPen, QPainterPath
+from PyQt6.QtGui import QPixmap, QBrush, QColor, QImage, QPen, QPainterPath, QPainter
 from PyQt6.QtCore import QTimer, QThread, pyqtSignal
 from adafruit_rplidar import RPLidar
 import sys, random
 import heapq, math, os
+from math import cos, sin, pi, floor
 
 red_threshold = 20
 green_threshold = 20
@@ -14,6 +15,7 @@ PORT_NAME = '/dev/ttyUSB0' # usb device name
 max_distance = 0  # max LiDAR distance in mm
 
 class LiDAR(QThread):
+    scan_ready = pyqtSignal(list)
     def __init__(self):
         os.putenv('SDL_FBDEV', '/dev/fb1')
         self.lidar = RPLidar(None, PORT_NAME, timeout=7)
@@ -52,20 +54,48 @@ class LiDAR(QThread):
             except Exception:
                 pass
             self.wait(2000)
-        
-class Map(QGraphicsView):
-    def __init__(self, map_path, bbox):
-        super().__init__()
-        self.scene = QGraphicsScene()
-        self.setScene(self.scene)
 
-        # import map image
-        self.map_pixmap = QPixmap(map_path)
-        self.scene.addPixmap(self.map_pixmap)
 
-        # bounding box
-        # (min_lat, max_lat, min_lon, max_lon)
-        self.bbox = bbox
+class ScanWidget(QtWidgets.QWidget):
+    def __init__(self, parent=None, size=600):
+        super().__init__(parent)
+        self.setFixedSize(size, size)
+        self.size = size
+        self.scan_data = [0] * 360
+        self.max_distance = 0
+
+    @QtCore.pyqtSlot(list)
+    def update_scan(self, data):
+        # store reference copy
+        self.scan_data = data[:]  # shallow copy
+        # update max_distance similar to original code: ensure non-decreasing to stabilize scaling
+        for d in data:
+            if d > 0:
+                self.max_distance = max(min(5000, d), self.max_distance)
+        # trigger repaint
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(0, 0, self.size, self.size, QColor(0, 0, 0))
+        if self.max_distance <= 0:
+            return
+        cx = cy = self.size // 2
+        scale = 119.0 / self.max_distance
+        pen = QtGui.QPen(QColor(255, 255, 255))
+        pen.setWidth(1)
+        painter.setPen(pen)
+        for angle in range(360):
+            distance = self.scan_data[angle]
+            if distance > 0:
+                radians = angle * pi / 180.0
+                x = distance * cos(radians)
+                y = distance * sin(radians)
+                px = cx + int(x * scale)
+                py = cy + int(y * scale)
+                # draw a single point (small rectangle for visibility)
+                painter.drawPoint(px, py)
+        painter.end()
 
 
 class IndoorNavigationViewer(QGraphicsView):
