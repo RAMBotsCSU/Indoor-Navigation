@@ -10,6 +10,15 @@ adafruit-rplidar = "*"
 pandas = "*"
 numpy = "*"
 matplotlib = "*"
+serial = "*"
+gps = "*"
+gpsd = "*"
+
+[scripts]
+main = "python navigation.py"
+lidar = "python LiDAR.py"
+map = "python map.py"
+gps = "python gps.py"
 
 [dev-packages]
 
