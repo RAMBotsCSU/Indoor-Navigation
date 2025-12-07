@@ -47,8 +47,8 @@ if __name__ == "__main__":
             except:
                 print("Satellites:   unavailable")
 
-            time.sleep(1)  # Update every seco
+            time.sleep(1)  # Update every second
     except (KeyboardInterrupt, SystemExit):
-        gsps.running = False
-        gsps.join()
+        gpsp.running = False
+        gpsp.join()
         print("Exiting")
