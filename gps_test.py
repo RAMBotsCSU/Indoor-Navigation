@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os
 import time
 import threading
@@ -49,3 +48,7 @@ if __name__ == "__main__":
                 print("Satellites:   unavailable")
 
             time.sleep(1)  # Update every seco
+    except (KeyboardInterrupt, SystemExit):
+        gsps.running = False
+        gsps.join()
+        print("Exiting")

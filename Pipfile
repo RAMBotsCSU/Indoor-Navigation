@@ -11,14 +11,14 @@ pandas = "*"
 numpy = "*"
 matplotlib = "*"
 serial = "*"
-gps = "*"
 gpsd = "*"
+gps = "*"
 
 [scripts]
 main = "python navigation.py"
 lidar = "python LiDAR.py"
 map = "python map.py"
-gps = "python gps.py"
+gps = "python gps_test.py"
 
 [dev-packages]
 
