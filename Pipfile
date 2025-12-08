@@ -13,6 +13,7 @@ matplotlib = "*"
 serial = "*"
 gpsd = "*"
 gps = "*"
+odrive = "*"
 
 [scripts]
 main = "python navigation.py"
