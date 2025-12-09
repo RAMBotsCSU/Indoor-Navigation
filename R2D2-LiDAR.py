@@ -1,15 +1,12 @@
-import os
 from math import cos, sin, pi, floor
-import sys
+import sys, time, asyncio, odrive, pygame, csv
 from PyQt6.QtGui import QPixmap, QPainter, QColor, QPen
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from adafruit_rplidar import RPLidar
-import asyncio
-import odrive
-from .controller import Controller
 
 odrv_enable = True
+analog_keys = {0: 0, 1: 0, 2: 0, 3: 0}
 
 class UI:
     def __init__(self):
@@ -27,6 +24,7 @@ class LiDAR:
         self.port = port
         self.max_distance = max_distance
         self.lidar = RPLidar(None, port, timeout=3)
+        self.data = []
 
     def process_data(self, data):
         for angle in range(360):
@@ -57,10 +55,31 @@ class LiDAR:
     def info(self):
         return self.lidar.get_info()
 
+    def save_data(self, data):
+        filename = self.get_filename()
+        with open(filename, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            for row in data:
+                writer.writerow([row])
+        print(f"LiDAR data saved to {filename}")
+    
+    def get_filename(self):
+        date = time.strftime("%Y%m%d-%H%M%S")
+        return "outputs/lidar_data_{}.csv".format(date)
+
 class ODrive:
     def __init__(self):
         if odrv_enable:
             self.odrv = odrive.find_any()
+        self.controller_init()
+    
+    def controller_init(self):
+        pygame.init()
+        pygame.joystick.init()
+        joystick = pygame.joystick.Joystick(0)
+        joystick.init()
+        print("Found controller:", joystick.get_name())
+        print("GUID: ", joystick.get_guid())
     
     def move_axis(self, input, axis):
         if odrv_enable:
@@ -69,15 +88,12 @@ class ODrive:
             if axis == 1:
                 self.odrv.axis1.controller.input_vel = -1.0*self.read_motion(input)
 
-    async def dumb_navigation(self, LiDAR):
-        distance = LiDAR.info()
-        while True:
-            if distance > 300:
-                self.move_axis(0.5, 0)
-                self.move_axis(0.5, 1)
-            elif distance <= 300:
-                self.move_axis(-0.5, 0)
-                self.move_axis(0.5, 1)
+    async def control(self):
+        for event in pygame.event.get():
+            if event.type == pygame.JOYAXISMOTION:
+                analog_keys[event.axis] = event.value
+                self.move_axis(analog_keys[0], 0)
+                self.move_axis(analog_keys[1], 1)
 
     def read_motion(self, input):
         if abs(input) > 0.2:
@@ -85,16 +101,21 @@ class ODrive:
         else: 
             return 0.0
 
+async def main():
+    task = asyncio.create_task(odrive.control())
+    await task
+
 if __name__ == "__main__":
-    lidar = LiDAR('/dev/ttyUSB0')
-    ui = UI()
-    ui.start()
-
-    odrive = ODrive()
-    odrive.dumb_navigation(lidar)
-
     try:
+        lidar = LiDAR('/dev/ttyUSB0')
+        ui = UI()
+        ui.start()
+
+        odrive = ODrive()
+        asyncio.run(main())
+
+    except KeyboardInterrupt:
         lidar.stop()
         lidar.disconnect()
-    except KeyboardInterrupt:
         print("Exiting")
+        lidar.save_data()

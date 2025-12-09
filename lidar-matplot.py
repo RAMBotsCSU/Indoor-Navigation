@@ -6,7 +6,7 @@ from PyQt6.QtGui import QPixmap, QPainter, QPen, QColor
 from PyQt6.QtCore import Qt, QTimer
 
 
-CSV_PATH = "lidar_data_old.csv"   
+CSV_PATH = "include/lidar_data_old.csv"   
 NOISE_THRESHOLD = 200        
 
 

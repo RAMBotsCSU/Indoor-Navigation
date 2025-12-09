@@ -14,12 +14,14 @@ serial = "*"
 gpsd = "*"
 gps = "*"
 odrive = "*"
+pygame = "*"
 
 [scripts]
 main = "python navigation.py"
 lidar = "python LiDAR.py"
 map = "python map.py"
-gps = "python gps_test.py"
+gps = "python testing/gps_test.py"
+aio = "python testing/asyncio-test.py"
 
 [dev-packages]
 
