@@ -1,5 +1,6 @@
 import pygame
 import odrive
+from odrive.enums import CONTROL_MODE_VELOCITY_CONTROL, INPUT_MODE_VEL_RAMP
 from math import pi, cos, sin
 import asyncio
 
