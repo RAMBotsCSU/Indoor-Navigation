@@ -70,16 +70,16 @@ class ODrive:
         self.controller1 = self.odrv.axis1.controller
 
         # init control mode
-        self.controller0.config.control_mode = odrive.enums.CONTROL_MODE_VELOCITY_CONTROL
-        self.controller1.config.control_mode = odrive.enums.CONTROL_MODE_VELOCITY_CONTROL
+        self.controller0.config.control_mode = CONTROL_MODE_VELOCITY_CONTROL
+        self.controller1.config.control_mode = CONTROL_MODE_VELOCITY_CONTROL
 
         # set velocity gains
         self.controller0.config.vel_gain = 0.5
         self.controller1.config.vel_gain = 0.5
 
         # set input type
-        self.controller0.config.input_mode = odrive.enums.INPUT_MODE_VEL_RAMP
-        self.controller1.config.input_mode = odrive.enums.INPUT_MODE_VEL_RAMP
+        self.controller0.config.input_mode = INPUT_MODE_VEL_RAMP
+        self.controller1.config.input_mode = INPUT_MODE_VEL_RAMP
             
     def odometry(self):
         self.init_odometry()

@@ -53,4 +53,18 @@ class LiDAR:
         return self.lidar.get_info()
 
 class RunningMap():
-    pass
+    def __init__(self):
+        # initialize point cloud size based on large res
+        # find full range of LiDAR distance
+        pass
+
+    # function to granularize lidar points into grid points
+
+    # function to map lidar points and position into grid points
+
+    # function to create running average
+
+    # function to update grid from a probability standpoint
+
+    # function to save capture as image
+        # probability heatmap export
