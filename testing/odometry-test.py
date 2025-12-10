@@ -54,6 +54,7 @@ class ODrive:
         position = [x, y]
         return position
     
+    # calculated turn movement
     async def turn_move(self, angle, theta):
         self.controller0.input_vel = self.sign(angle) * -1.0
         self.controller1.input_vel = self.sign(angle) * 1.0
@@ -94,9 +95,14 @@ class ODrive:
     
 
 if __name__ == "__main__":
+    home_position = [0.0,0.0]
+    home_rotation = 0.0
     odrv = ODrive()
     try:
-        while True:
-            asyncio.run(odrv.control())
+        odrv.odometry()
+        home_position = odrv.forward_move(home_position)
+        home_rotation = odrv.turn_move(home_rotation, 90)
+        asyncio.run(odrv.control())
+        
     except KeyboardInterrupt:
         print("Exiting")
