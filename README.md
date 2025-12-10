@@ -1,16 +1,10 @@
 ## INDOOR NAVIGATION ML
 
-map.py
-----------------------------------------
-Test code for mapping a specific location in engineering building to plot on map
+File Outline
+-------------
 
-TO RUN: `py -m pipenv run map.py`
-- Need pipenv and pipfile installeds
+- Testing: test scripts
+- Outputs: LiDAR data recording
+- Include: non-programmed files
 
-LiDAR.py
-----------------------------------------
-Test code for displaying LiDAR data in the Qt Framework
-eventually to be integrated in final codebase
-
-TO RUN: `py -m pipenv run LiDAR.py`
-- Need pipenv and pipfile installeds
+Anything in the main directory is a canidate for the final code testing file

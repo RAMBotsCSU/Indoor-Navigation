@@ -18,10 +18,11 @@ pygame = "*"
 
 [scripts]
 main = "python navigation.py"
-lidar = "python LiDAR.py"
-map = "python map.py"
+lidar = "python testing/LiDAR.py"
+map = "python testing/map.py"
 gps = "python testing/gps_test.py"
 aio = "python testing/asyncio-test.py"
+r2d2 = "python R2D2-LiDAR.py"
 
 [dev-packages]
 
