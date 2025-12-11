@@ -1,8 +1,9 @@
 import pygame
 import odrive
-from odrive.enums import CONTROL_MODE_VELOCITY_CONTROL, INPUT_MODE_VEL_RAMP
+from odrive.enums import CONTROL_MODE_VELOCITY_CONTROL, INPUT_MODE_VELOCITY_CONTROL
 from math import pi, cos, sin
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 odrv_enable = True
 analog_keys = {0: 0, 1: 0, 2: 0, 3: 0}
@@ -14,14 +15,20 @@ WHEEL_BASE = 59.0  # distance between wheels in cm
 
 class ODrive:
     def __init__(self):
-        if odrv_enable:
-            self.odrv = odrive.find_any()
-        else:
-            self.odrv = None
+        # don't initialize ODrive in __init__; do it async in async_init
+        self.odrv = None
         self.controller_init()
         self.controller0 = None
         self.controller1 = None
     
+    async def async_init(self):
+        # find ODrive asynchronously
+        if odrv_enable:
+            loop = asyncio.get_event_loop()
+            with ThreadPoolExecutor() as pool:
+                self.odrv = await loop.run_in_executor(pool, odrive.find_any)
+        return self
+
     def controller_init(self):
         pygame.init()
         pygame.joystick.init()
@@ -115,6 +122,8 @@ async def async_main():
     home_position = [0.0, 0.0]
     home_rotation = 0.0
     odrv = ODrive()
+    # initialize ODrive hardware asynchronously
+    await odrv.async_init()
     
     try:
         odrv.init_odometry()
