@@ -15,10 +15,13 @@ gpsd = "*"
 gps = "*"
 odrive = "*"
 pygame = "*"
+pillow = "*"
 
 [scripts]
 main = "python navigation.py"
 lidar = "python testing/LiDAR.py"
+mapping = "python testing/LiDAR-mapping.py"
+odo = "python testing/odometry-test.py"
 map = "python testing/map.py"
 gps = "python testing/gps_test.py"
 aio = "python testing/asyncio-test.py"
