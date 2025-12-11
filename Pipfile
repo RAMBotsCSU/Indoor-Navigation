@@ -18,7 +18,7 @@ pygame = "*"
 pillow = "*"
 
 [scripts]
-main = "python navigation.py"
+main = "python src/main.py"
 lidar = "python testing/LiDAR.py"
 mapping = "python testing/LiDAR-mapping.py"
 odo = "python testing/odometry-test.py"

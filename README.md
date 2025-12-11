@@ -29,7 +29,7 @@ Pipfile functions differently on linux since it's already on the path once you i
 Commands
 ---------
 
-| Command    | file                      |
+| Command    | File                      |
 | :--------- | :------------------------ |
 | main       | navigation.py             |
 | lidar      | testing/LiDAR.py          |
@@ -42,7 +42,7 @@ Commands
 
 
 Progress
----------
+=========
 Since this is pseudo SLAM from scratch without ROS, learning all of the elements that make it up has been more complex than expected. In the testing folder are multiple scripts and classes written along the way that test different elements of SLAM or indoor navigation.
 
 
