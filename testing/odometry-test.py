@@ -9,17 +9,13 @@ from concurrent.futures import ThreadPoolExecutor
 odrv_enable = True
 analog_keys = {0: 0, 1: 0, 2: 0, 3: 0}
 
-# Wheel Radius is 15.5 cm
 WHEEL_RADIUS = 15.5
 WHEEL_CIRCUMFERENCE = 2 * math.pi * WHEEL_RADIUS
-WHEEL_BASE = 59.0  # distance between wheels in cm
-
-WHEEL_RADIUS_CM = 15.5
-WHEEL_BASE_CM = 59.0
+WHEEL_BASE = 59.0 
 GEAR_RATIO = 1.0
 
 # Arrival tuning
-POS_TOL = 0.005      # motor revolutions tolerance
+POS_TOL = 0.005
 TIMEOUT = 8.0
 
 class ODrive:
@@ -134,11 +130,6 @@ class ODrive:
     def arc_length(self,arc):
         return arc * 180 / (math.pi * WHEEL_BASE/2)
 
-
-
-
-
-
 class Odometry:
     def __init__(self):
         self.odrv = None
@@ -161,35 +152,28 @@ class Odometry:
         return self
 
     async def enable(self):
-        """
-        Enable closed-loop position control without recalibration.
-        Assumes calibration has already been saved.
-        """
-        # Configure controller for position mode
+        # position control
         self.a0.controller.config.control_mode = odrive.enums.CONTROL_MODE_POSITION_CONTROL
         self.a1.controller.config.control_mode = odrive.enums.CONTROL_MODE_POSITION_CONTROL
 
-        # Use passthrough initially so input_pos = current encoder pos
+        # input pos = current pos
         self.a0.controller.config.input_mode = odrive.enums.INPUT_MODE_PASSTHROUGH
         self.a1.controller.config.input_mode = odrive.enums.INPUT_MODE_PASSTHROUGH
 
-        # Sync input_pos so motors don't jump
+        # sync the two
         self.a0.controller.input_pos = self.a0.encoder.pos_estimate
         self.a1.controller.input_pos = self.a1.encoder.pos_estimate
 
-        # Now enter closed loop
+        # closed loop control
         self.a0.requested_state = odrive.enums.AXIS_STATE_CLOSED_LOOP_CONTROL
         self.a1.requested_state = odrive.enums.AXIS_STATE_CLOSED_LOOP_CONTROL
 
-        # Record initial encoder positions for odometry
+        # set start point with encoders
         await asyncio.sleep(0.1)
         self.last0 = float(self.a0.encoder.pos_estimate)
         self.last1 = float(self.a1.encoder.pos_estimate)
 
-    # -------------------------------------------------------
-    # Low-level primitive movement
-    # -------------------------------------------------------
-
+    # Simple movement function
     async def _move_to(self, target0, target1, timeout=TIMEOUT):
         self.a0.controller.input_pos = target0
         self.a1.controller.input_pos = target1
@@ -210,10 +194,7 @@ class Odometry:
 
             await asyncio.sleep(0.01)
 
-    # -------------------------------------------------------
-    # High-level robot movement
-    # -------------------------------------------------------
-
+    # Move forward a specific distance in cm
     async def forward_cm(self, distance_cm: float):
         # wheel revolutions
         wheel_revs = distance_cm / WHEEL_CIRCUMFERENCE
@@ -222,27 +203,24 @@ class Odometry:
         start0 = float(self.a0.encoder.pos_estimate)
         start1 = float(self.a1.encoder.pos_estimate)
 
-        return await self._move_to(start0 + motor_turns,
+        return await self._move_to(start0 - motor_turns,
                                    start1 + motor_turns)
 
     async def turn_deg(self, angle_deg: float):
         theta_rad = math.radians(angle_deg)
 
         # arc per wheel (cm). Left = -arc, right = +arc for CCW.
-        arc_cm = (theta_rad * WHEEL_BASE_CM) / 2.0
+        arc_cm = (theta_rad * WHEEL_BASE) / 2.0
         wheel_revs = arc_cm / WHEEL_CIRCUMFERENCE
         motor_turns = wheel_revs * GEAR_RATIO
 
         start0 = float(self.a0.encoder.pos_estimate)
         start1 = float(self.a1.encoder.pos_estimate)
 
-        return await self._move_to(start0 - motor_turns,
+        return await self._move_to(start0 + motor_turns,
                                    start1 + motor_turns)
 
-    # -------------------------------------------------------
-    # Odometry update
-    # -------------------------------------------------------
-
+    # update odometry
     def _update_odometry(self, p0: float, p1: float):
         d0 = p0 - self.last0
         d1 = p1 - self.last1
@@ -250,7 +228,7 @@ class Odometry:
         self.last0 = p0
         self.last1 = p1
 
-        # convert motor turns → wheel linear displacement
+        # convert motor turns to wheel linear displacement
         dL = (d0 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE
         dR = (d1 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE
 

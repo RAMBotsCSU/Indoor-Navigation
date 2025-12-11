@@ -105,58 +105,6 @@ class ODrive:
             return input
         else: 
             return 0.0
-        
-    '''
-    pseudo code for odometry
-    async def forward_move(self, pos):
-        self.odrv.axis0.controller.input_vel = -1.0
-        self.odrv.axis1.controller.input_vel = -1.0
-        await asyncio.sleep(1)
-        x = pos[0] + WHEEL_CIRCUMFERENCE
-        y = pos[1] + WHEEL_CIRCUMFERENCE
-        position = [x, y]
-        return position
-    
-    async def turn_move(self, angle, theta):
-        self.controller0.input_vel = sign(angle) * -1.0
-        self.controller1.input_vel = sign(angle) * 1.0
-        await asyncio.sleep(1)
-        theta = sign(angle)*arc_length(WHEEL_RADIUS) + theta
-        return theta
-     
-    def init_odometry(self):
-        x, y, theta = 0.0, 0.0, 0.0
-
-        # init controllers
-        self.controller0 = self.odrv.axis0.controller
-        self.controller1 = self.odrv.axis1.controller
-
-        # init control mode
-        self.controller0.config.control_mode = odrive.enums.CONTROL_MODE_VELOCITY_CONTROL
-        self.controller1.config.control_mode = odrive.enums.CONTROL_MODE_VELOCITY_CONTROL
-
-        # set velocity gains
-        self.controller0.config.vel_gain = 0.5
-        self.controller1.config.vel_gain = 0.5
-
-        # set input type
-        self.controller0.config.input_mode = odrive.enums.INPUT_MODE_VEL_RAMP
-        self.controller1.config.input_mode = odrive.enums.INPUT_MODE_VEL_RAMP
-            
-    def odometry(self):
-        self.init_odometry()
-        self.absolute_position = [x,y,theta]
-    
-    def sign(theta):
-        if theta > 0:
-            return 1
-        else:
-            return -1
-
-    def arc_length(self, arc):
-        return arc * 180 / (pi * WHEEL_BASE/2)
-    
-    '''
 
 async def main():
     task = asyncio.create_task(odrive.control())
