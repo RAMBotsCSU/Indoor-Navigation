@@ -30,9 +30,9 @@ async def main():
         frame = rm.heatmap_from_scan(scan, position=(x, y))
         print(f"Heatmap updated, accumulated {rm.num_frames()} frame(s)")
 
-        # save and display map
-        rm.save_overall_map("outputs/map_after_movement.png")
-        print("Map saved to outputs/map_after_movement.png")
+        # save map
+        rm.save_overall_map("outputs/map.png")
+        print("Map saved to outputs/map.png")
 
         lidar.stop()
 

@@ -25,7 +25,7 @@ odo = "python testing/odometry-test.py"
 map = "python testing/map.py"
 gps = "python testing/gps_test.py"
 aio = "python testing/asyncio-test.py"
-r2d2 = "python R2D2-LiDAR.py"
+r2d2 = "python testing/R2D2-LiDAR.py"
 
 [dev-packages]
 
