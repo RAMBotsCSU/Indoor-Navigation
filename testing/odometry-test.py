@@ -14,6 +14,14 @@ WHEEL_RADIUS = 15.5
 WHEEL_CIRCUMFERENCE = 2 * math.pi * WHEEL_RADIUS
 WHEEL_BASE = 59.0  # distance between wheels in cm
 
+WHEEL_RADIUS_CM = 15.5
+WHEEL_BASE_CM = 59.0
+GEAR_RATIO = 1.0
+
+# Arrival tuning
+POS_TOL = 0.005      # motor revolutions tolerance
+TIMEOUT = 8.0
+
 class ODrive:
     def __init__(self):
         # don't initialize ODrive in __init__; do it async in async_init
@@ -128,15 +136,7 @@ class ODrive:
 
 
 
-WHEEL_RADIUS_CM = 15.5
-WHEEL_BASE_CM = 59.0
-GEAR_RATIO = 1.0
 
-WHEEL_CIRC_CM = 2 * math.pi * WHEEL_RADIUS_CM
-
-# Arrival tuning
-POS_TOL = 0.005      # motor revolutions tolerance
-TIMEOUT = 8.0
 
 
 class Odometry:
@@ -216,7 +216,7 @@ class Odometry:
 
     async def forward_cm(self, distance_cm: float):
         # wheel revolutions
-        wheel_revs = distance_cm / WHEEL_CIRC_CM
+        wheel_revs = distance_cm / WHEEL_CIRCUMFERENCE
         motor_turns = wheel_revs * GEAR_RATIO
 
         start0 = float(self.a0.encoder.pos_estimate)
@@ -230,7 +230,7 @@ class Odometry:
 
         # arc per wheel (cm). Left = -arc, right = +arc for CCW.
         arc_cm = (theta_rad * WHEEL_BASE_CM) / 2.0
-        wheel_revs = arc_cm / WHEEL_CIRC_CM
+        wheel_revs = arc_cm / WHEEL_CIRCUMFERENCE
         motor_turns = wheel_revs * GEAR_RATIO
 
         start0 = float(self.a0.encoder.pos_estimate)
@@ -251,11 +251,11 @@ class Odometry:
         self.last1 = p1
 
         # convert motor turns → wheel linear displacement
-        dL = (d0 / GEAR_RATIO) * WHEEL_CIRC_CM
-        dR = (d1 / GEAR_RATIO) * WHEEL_CIRC_CM
+        dL = (d0 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE
+        dR = (d1 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE
 
         d_center = (dL + dR) / 2.0
-        d_theta = (dR - dL) / WHEEL_BASE_CM
+        d_theta = (dR - dL) / WHEEL_BASE
 
         # integrate
         self.x += d_center * math.cos(self.th + d_theta / 2.0)
