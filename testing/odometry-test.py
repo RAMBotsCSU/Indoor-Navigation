@@ -71,6 +71,7 @@ class ODrive:
             self.odrv.axis0.controller.input_vel = -1.0
             self.odrv.axis1.controller.input_vel = -1.0
         await asyncio.sleep(1)
+        self.end_odometry()
         x = pos[0] + WHEEL_CIRCUMFERENCE
         y = pos[1] + WHEEL_CIRCUMFERENCE
         position = [x, y]
@@ -81,6 +82,7 @@ class ODrive:
             self.controller0.input_vel = self.sign(angle) * -1.0
             self.controller1.input_vel = self.sign(angle) * 1.0
         await asyncio.sleep(1)
+        self.end_odometry()
         theta = self.sign(angle) * self.arc_length(WHEEL_RADIUS) + theta
         return theta
      
@@ -108,6 +110,12 @@ class ODrive:
     def odometry(self):
         self.init_odometry()
     
+    def end_odometry(self):
+        if not odrv_enable or not self.odrv:
+            return
+        self.controller0.input_vel = 0.0
+        self.controller1.input_vel = 0.0
+
     def sign(self, theta):
         if theta > 0:
             return 1
@@ -140,6 +148,7 @@ async def async_main():
         print("Exiting")
     finally:
         pygame.quit()
+        odrv.end_odometry()
 
 if __name__ == "__main__":
     asyncio.run(async_main())
