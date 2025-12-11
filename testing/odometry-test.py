@@ -1,6 +1,6 @@
 import pygame
 import odrive
-from odrive.enums import CONTROL_MODE_VELOCITY_CONTROL, INPUT_MODE_VELOCITY_CONTROL
+from odrive.enums import CONTROL_MODE_VELOCITY_CONTROL, INPUT_MODE_VEL_RAMP
 from math import pi, cos, sin
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -102,8 +102,8 @@ class ODrive:
         self.controller1.config.vel_gain = 0.5
 
         # set input type
-        self.controller0.config.input_mode = INPUT_MODE_VELOCITY_CONTROL
-        self.controller1.config.input_mode = INPUT_MODE_VELOCITY_CONTROL
+        self.controller0.config.input_mode = INPUT_MODE_VEL_RAMP
+        self.controller1.config.input_mode = INPUT_MODE_VEL_RAMP
             
     def odometry(self):
         self.init_odometry()
