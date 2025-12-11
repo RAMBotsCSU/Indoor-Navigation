@@ -10,13 +10,17 @@ analog_keys = {0: 0, 1: 0, 2: 0, 3: 0}
 # Wheel Radius is 15.5 cm
 WHEEL_RADIUS = 15.5
 WHEEL_CIRCUMFERENCE = 2 * pi * WHEEL_RADIUS
-WHEEL_BASE = 100.0  # distance between wheels in cm
+WHEEL_BASE = 59.0  # distance between wheels in cm
 
 class ODrive:
     def __init__(self):
         if odrv_enable:
             self.odrv = odrive.find_any()
+        else:
+            self.odrv = None
         self.controller_init()
+        self.controller0 = None
+        self.controller1 = None
     
     def controller_init(self):
         pygame.init()
@@ -33,12 +37,21 @@ class ODrive:
             if axis == 1:
                 self.odrv.axis1.controller.input_vel = -1.0*self.read_motion(input)
 
-    async def control(self):
-        for event in pygame.event.get():
-            if event.type == pygame.JOYAXISMOTION:
-                analog_keys[event.axis] = event.value
-                self.move_axis(analog_keys[0], 0)
-                self.move_axis(analog_keys[1], 1)
+    async def control_loop(self):
+        # continuous async control loop reading pygame events
+        clock = pygame.time.Clock()
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.JOYAXISMOTION:
+                    analog_keys[event.axis] = event.value
+                    self.move_axis(analog_keys[0], 0)
+                    self.move_axis(analog_keys[1], 1)
+            # yield control back to asyncio event loop
+            await asyncio.sleep(0.01)
+            clock.tick(60)
 
     def read_motion(self, input):
         if abs(input) > 0.2:
@@ -47,23 +60,26 @@ class ODrive:
             return 0.0
         
     async def forward_move(self, pos):
-        self.odrv.axis0.controller.input_vel = -1.0
-        self.odrv.axis1.controller.input_vel = -1.0
+        if odrv_enable and self.odrv:
+            self.odrv.axis0.controller.input_vel = -1.0
+            self.odrv.axis1.controller.input_vel = -1.0
         await asyncio.sleep(1)
         x = pos[0] + WHEEL_CIRCUMFERENCE
         y = pos[1] + WHEEL_CIRCUMFERENCE
         position = [x, y]
         return position
     
-    # calculated turn movement
-    async def turn_move(self, angle, theta):
-        self.controller0.input_vel = self.sign(angle) * -1.0
-        self.controller1.input_vel = self.sign(angle) * 1.0
+    async def turn_move(self, theta, angle):
+        if odrv_enable and self.odrv:
+            self.controller0.input_vel = self.sign(angle) * -1.0
+            self.controller1.input_vel = self.sign(angle) * 1.0
         await asyncio.sleep(1)
-        theta = self.sign(angle)*self.arc_length(WHEEL_RADIUS) + theta
+        theta = self.sign(angle) * self.arc_length(WHEEL_RADIUS) + theta
         return theta
      
     def init_odometry(self):
+        if not odrv_enable or not self.odrv:
+            return
         x, y, theta = 0.0, 0.0, 0.0
 
         # init controllers
@@ -79,8 +95,8 @@ class ODrive:
         self.controller1.config.vel_gain = 0.5
 
         # set input type
-        self.controller0.config.input_mode = INPUT_MODE_VEL_RAMP
-        self.controller1.config.input_mode = INPUT_MODE_VEL_RAMP
+        self.controller0.config.input_mode = INPUT_MODE_VELOCITY_CONTROL
+        self.controller1.config.input_mode = INPUT_MODE_VELOCITY_CONTROL
             
     def odometry(self):
         self.init_odometry()
@@ -95,15 +111,26 @@ class ODrive:
         return arc * 180 / (pi * WHEEL_BASE/2)
     
 
-if __name__ == "__main__":
-    home_position = [0.0,0.0]
+async def async_main():
+    home_position = [0.0, 0.0]
     home_rotation = 0.0
     odrv = ODrive()
+    
     try:
-        odrv.odometry()
-        home_position = odrv.forward_move(home_position)
-        home_rotation = odrv.turn_move(home_rotation, 90)
-        asyncio.run(odrv.control())
+        odrv.init_odometry()
+        # run forward and turn moves sequentially
+        home_position = await odrv.forward_move(home_position)
+        print("New position:", home_position)
+        home_rotation = await odrv.turn_move(home_rotation, 90)
+        print("New rotation:", home_rotation)
+        
+        # start continuous control loop
+        await odrv.control_loop()
         
     except KeyboardInterrupt:
         print("Exiting")
+    finally:
+        pygame.quit()
+
+if __name__ == "__main__":
+    asyncio.run(async_main())

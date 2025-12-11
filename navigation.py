@@ -10,6 +10,8 @@ except Exception:
 import sys, random
 import heapq, math, os
 from math import cos, sin, pi, floor
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 red_threshold = 20
 green_threshold = 20
@@ -22,27 +24,39 @@ class LiDAR(QThread):
     scan_ready = pyqtSignal(list)
     def __init__(self, port=PORT_NAME):
         super().__init__()
-        # don't create hardware in constructor; do it in run()
         self.port = port
         self._running = True
         self.lidar = None
         self.scan_data = [0]*360
 
     def run(self):
+        # wrap the blocking scan loop in an asyncio-friendly manner
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(self._scan_loop())
+        finally:
+            loop.close()
+
+    async def _scan_loop(self):
         try:
             if RPLidar is not None:
-                self.lidar = RPLidar(None, self.port, timeout=3)
-                for scan in self.lidar.iter_scans():
-                    if not self._running:
-                        break
-                    scan_data = [0] * 360
-                    for (_, angle, distance) in scan:
-                        scan_data[min(359, math.floor(angle))] = distance
-                    self.scan_data = scan_data
-                    # Emit the latest scan for UI
-                    self.scan_ready.emit(self.scan_data)
+                # hardware scanning (blocking iterator; run in executor)
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    self.lidar = await asyncio.get_event_loop().run_in_executor(
+                        executor, lambda: RPLidar(None, self.port, timeout=3)
+                    )
+                    for scan in self.lidar.iter_scans():
+                        if not self._running:
+                            break
+                        scan_data = [0] * 360
+                        for (_, angle, distance) in scan:
+                            scan_data[min(359, math.floor(angle))] = distance
+                        self.scan_data = scan_data
+                        self.scan_ready.emit(self.scan_data)
+                        await asyncio.sleep(0)  # yield control
             else:
-                # fallback simulator loop if no hardware package available
+                # simulator fallback
                 angle_offset = 0.0
                 while self._running:
                     scan = [0] * 360
@@ -59,7 +73,7 @@ class LiDAR(QThread):
                     self.scan_data = scan
                     self.scan_ready.emit(self.scan_data)
                     angle_offset += 2.0
-                    self.msleep(50)
+                    await asyncio.sleep(0.05)
         except Exception as e:
             print("Lidar worker error:", e)
         finally:
@@ -78,7 +92,6 @@ class LiDAR(QThread):
                 self.lidar.disconnect()
         except Exception:
             pass
-        # wait for thread to finish gracefully
         self.wait(2000)
 
 
@@ -288,14 +301,23 @@ class MainWindow(QtWidgets.QMainWindow):
         event.accept()
 
 
-def __main__():
+async def async_main():
     app = QApplication(sys.argv)
     lidar = LiDAR()
-    
     bbox = (40.57521493599895, 40.57590353282978, -105.08415316215739, -105.0821656452189)
     win = MainWindow(lidar, map_path="bldg_map.png", bbox=bbox)
     win.show()
-    sys.exit(app.exec())
+
+    # run QApplication event loop in executor so asyncio can manage it
+    loop = asyncio.get_event_loop()
+    executor = ThreadPoolExecutor(max_workers=1)
+    await loop.run_in_executor(executor, app.exec)
+
+def __main__():
+    try:
+        asyncio.run(async_main())
+    except KeyboardInterrupt:
+        print("Interrupted.")
 
 if __name__ == "__main__":
     __main__()
