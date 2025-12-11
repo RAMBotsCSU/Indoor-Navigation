@@ -1,6 +1,6 @@
-from src.LiDAR import LiDAR
-from src.Odometry import Odometry
-from src.RunningMap import RunningMap
+from LiDAR import LiDAR
+from Odometry import Odometry
+from RunningMap import RunningMap
 import asyncio
 
 
