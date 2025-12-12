@@ -13,9 +13,9 @@ matplotlib = "*"
 serial = "*"
 gpsd = "*"
 gps = "*"
-odrive = "*"
 pygame = "*"
 pillow = "*"
+odrive = "==0.6.10.post0"
 
 [scripts]
 main = "python src/main.py"
