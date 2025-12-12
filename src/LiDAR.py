@@ -1,6 +1,6 @@
 from adafruit_rplidar import RPLidar
 from math import cos, sin, pi, floor
-import time
+import asyncio
 
 class LiDAR:    
     def __init__(self, port='/dev/ttyUSB0', max_distance=6000):
@@ -8,81 +8,61 @@ class LiDAR:
         self.max_distance = max_distance
         self.scan_data = [0] * 360
         self.lidar = None
-        self._connect()
 
-    def _connect(self):
-        """Initialize connection with retries and reset."""
+    async def connect(self):
+        """Async initialize connection with reset/clear."""
+        self.lidar = await asyncio.to_thread(RPLidar, None, self.port, 3)
         try:
-            self.lidar = RPLidar(None, self.port, timeout=3)
-            # stop any existing scan and reset
-            try:
-                self.lidar.stop()
-                self.lidar.stop_motor()
-            except Exception:
-                pass
-            time.sleep(0.5)
-            # clear buffer
-            self.lidar.clear_input()
-            time.sleep(0.2)
-            # start motor (if your model requires it; comment out if not)
-            # self.lidar.start_motor()
-            # time.sleep(1)
-            print("LiDAR connected successfully")
-        except Exception as e:
-            print(f"LiDAR connection error: {e}")
-            self.lidar = None
+            await asyncio.to_thread(self.lidar.stop)
+            await asyncio.to_thread(self.lidar.stop_motor)
+        except Exception:
+            pass
+        await asyncio.sleep(0.5)
+        try:
+            await asyncio.to_thread(self.lidar.clear_input)
+        except Exception:
+            pass
+        await asyncio.sleep(0.2)
+        try:
+            await asyncio.to_thread(self.lidar.start_motor)
+        except Exception:
+            pass
+        await asyncio.sleep(1)
 
-    def get_scan(self):
+    async def get_scan(self):
         """
-        Retrieve one complete scan from the LiDAR.
+        Retrieve one complete scan from the LiDAR asynchronously.
         Returns: list of 360 distances (one per degree 0-359).
         """
         if not self.lidar:
             print("LiDAR not connected")
             return self.scan_data
         
-        retries = 3
-        for attempt in range(retries):
-            try:
-                for scan in self.lidar.iter_scans():
-                    scan_data = [0] * 360
-                    for (_, angle, distance) in scan:
-                        idx = min(359, int(floor(angle)))
-                        scan_data[idx] = distance
-                    self.scan_data = scan_data
-                    return scan_data
-            except Exception as e:
-                print(f"LiDAR scan error (attempt {attempt+1}/{retries}): {e}")
-                if attempt < retries - 1:
-                    # try to reset connection
-                    try:
-                        self.lidar.stop()
-                        self.lidar.clear_input()
-                        time.sleep(0.5)
-                    except Exception:
-                        pass
-                else:
-                    print("LiDAR scan failed after retries")
-        return self.scan_data
-
-    def get_scans(self, num_scans=1):
-        """
-        Retrieve multiple scans.
-        Returns: list of lists, each inner list is 360 distances.
-        """
-        scans = []
-        try:
+        async def _one_scan():
             for scan in self.lidar.iter_scans():
-                if len(scans) >= num_scans:
-                    break
                 scan_data = [0] * 360
                 for (_, angle, distance) in scan:
                     idx = min(359, int(floor(angle)))
                     scan_data[idx] = distance
-                scans.append(scan_data)
-        except Exception as e:
-            print(f"LiDAR error: {e}")
-        return scans
+                return scan_data
+            return self.scan_data
+
+        retries = 3
+        for attempt in range(retries):
+            try:
+                data = await asyncio.to_thread(_one_scan)
+                if data:
+                    self.scan_data = data
+                    return data
+            except Exception as e:
+                print(f"LiDAR scan error (attempt {attempt+1}/{retries}): {e}")
+                try:
+                    await asyncio.to_thread(self.lidar.stop)
+                    await asyncio.to_thread(self.lidar.clear_input)
+                except Exception:
+                    pass
+                await asyncio.sleep(0.5)
+        return self.scan_data
 
     def get_point(self, angle_deg):
         """Get distance at a specific angle (0-359)."""
@@ -98,7 +78,7 @@ class LiDAR:
         return x, y
 
     def info(self):
-        return self.lidar.get_info()
+        return self.lidar.get_info() if self.lidar else None
 
     def stop(self):
         try:

@@ -9,6 +9,7 @@ async def main():
     try:
         # initialize components
         lidar = LiDAR('/dev/ttyUSB0')
+        await lidar.connect()  # async connect
         rm = RunningMap(grid_size=200, cell_size_cm=5, max_distance_mm=6000)
         odo = Odometry()
         
@@ -29,7 +30,7 @@ async def main():
             print(f"Movement {'succeeded' if success else 'timed out'}")
 
             # scan LiDAR and get pose
-            scan = lidar.get_scan()
+            scan = await lidar.get_scan()
             x, y, theta = odo.pose()
             print(f"Robot pose: x={x:.2f} cm, y={y:.2f} cm, theta={theta:.4f} rad")
 
