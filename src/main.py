@@ -2,6 +2,7 @@ from LiDAR import LiDAR
 from Odometry import Odometry
 from RunningMap import RunningMap
 import asyncio
+import os
 
 
 async def main():
@@ -30,9 +31,13 @@ async def main():
         frame = rm.heatmap_from_scan(scan, position=(x, y))
         print(f"Heatmap updated, accumulated {rm.num_frames()} frame(s)")
 
-        # save map
-        rm.save_overall_map("outputs/map.png")
-        print("Map saved to outputs/map.png")
+        # ensure outputs directory exists and save map using absolute path
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        out_dir = os.path.join(project_root, "outputs")
+        os.makedirs(out_dir, exist_ok=True)
+        out_path = os.path.join(out_dir, "map.png")  # ensure .png extension
+        rm.save_overall_map(out_path)
+        print(f"Map saved to {os.path.abspath(out_path)}")
 
         lidar.stop()
 

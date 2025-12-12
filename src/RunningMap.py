@@ -1,5 +1,6 @@
 from math import cos, sin, pi, floor
 import numpy as np
+import os
 
 GRID_RESOLUTION = 1024
 
@@ -94,14 +95,13 @@ class RunningMap:
     def save_overall_map(self, out_path, cmap="hot", normalize=True):
         """Save the overall accumulated map as an image."""
         import matplotlib.pyplot as plt
-        
+        # ensure parent directory exists
+        os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
         map_data = self.overall_map
         if normalize:
-            # normalize to 0-1 for better visualization
             max_val = np.max(map_data)
             if max_val > 0:
                 map_data = map_data / max_val
-
         fig, ax = plt.subplots(figsize=(8, 8))
         im = ax.imshow(map_data, cmap=cmap, origin="lower")
         ax.set_title("Overall Accumulated Map")
