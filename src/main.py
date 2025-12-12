@@ -22,10 +22,10 @@ async def main():
         out_dir = os.path.join(project_root, "outputs")
         os.makedirs(out_dir, exist_ok=True)
 
-        # take 10 pictures: every 1 meter forward
-        for i in range(10):
-            print(f"Moving forward 1 m (step {i+1}/10)")
-            success = await odo.forward_cm(100.0)
+        # take 100 pictures: every 10 cm forward (total 10 meters)
+        for i in range(100):
+            print(f"Moving forward 10 cm (step {i+1}/100)")
+            success = await odo.forward_cm(10.0)
             print(f"Movement {'succeeded' if success else 'timed out'}")
 
             # scan LiDAR and get pose
@@ -35,7 +35,7 @@ async def main():
 
             # update map and save snapshot
             rm.heatmap_from_scan(scan, position=(x, y))
-            step_path = os.path.join(out_dir, f"map_step_{i+1:02d}.png")
+            step_path = os.path.join(out_dir, f"map_step_{i+1:03d}.png")
             rm.save_overall_map(step_path)
             print(f"Saved step image to {os.path.abspath(step_path)}")
 
