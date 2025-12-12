@@ -2,6 +2,12 @@ import odrive
 import asyncio
 import math
 from typing import Tuple
+# FIX: import enums explicitly; odrive may not expose `enums` attribute
+from odrive.enums import (
+    CONTROL_MODE_POSITION_CONTROL,
+    INPUT_MODE_PASSTHROUGH,
+    AXIS_STATE_CLOSED_LOOP_CONTROL,
+)
 
 WHEEL_RADIUS = 15.5
 WHEEL_CIRCUMFERENCE = 2 * math.pi * WHEEL_RADIUS
@@ -35,20 +41,20 @@ class Odometry:
 
     async def enable(self):
         # position control
-        self.a0.controller.config.control_mode = odrive.enums.CONTROL_MODE_POSITION_CONTROL
-        self.a1.controller.config.control_mode = odrive.enums.CONTROL_MODE_POSITION_CONTROL
+        self.a0.controller.config.control_mode = CONTROL_MODE_POSITION_CONTROL
+        self.a1.controller.config.control_mode = CONTROL_MODE_POSITION_CONTROL
 
         # input pos = current pos
-        self.a0.controller.config.input_mode = odrive.enums.INPUT_MODE_PASSTHROUGH
-        self.a1.controller.config.input_mode = odrive.enums.INPUT_MODE_PASSTHROUGH
+        self.a0.controller.config.input_mode = INPUT_MODE_PASSTHROUGH
+        self.a1.controller.config.input_mode = INPUT_MODE_PASSTHROUGH
 
         # sync the two
         self.a0.controller.input_pos = self.a0.encoder.pos_estimate
         self.a1.controller.input_pos = self.a1.encoder.pos_estimate
 
         # closed loop control
-        self.a0.requested_state = odrive.enums.AXIS_STATE_CLOSED_LOOP_CONTROL
-        self.a1.requested_state = odrive.enums.AXIS_STATE_CLOSED_LOOP_CONTROL
+        self.a0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
+        self.a1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
 
         # set start point with encoders
         await asyncio.sleep(0.1)
