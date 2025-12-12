@@ -38,7 +38,8 @@ class LiDAR:
             print("LiDAR not connected")
             return self.scan_data
         
-        async def _one_scan():
+        # regular function (not coroutine) to run in a thread
+        def _one_scan():
             for scan in self.lidar.iter_scans():
                 scan_data = [0] * 360
                 for (_, angle, distance) in scan:
