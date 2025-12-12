@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 odrv_enable = True
 analog_keys = {0: 0, 1: 0, 2: 0, 3: 0}
 
-WHEEL_RADIUS = 15.5
+WHEEL_RADIUS = 15.5/2
 WHEEL_CIRCUMFERENCE = 2 * math.pi * WHEEL_RADIUS
 WHEEL_BASE = 59.0 
 GEAR_RATIO = 1.0

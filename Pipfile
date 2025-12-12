@@ -26,6 +26,7 @@ map = "python testing/map.py"
 gps = "python testing/gps_test.py"
 aio = "python testing/asyncio-test.py"
 r2d2 = "python testing/R2D2-LiDAR.py"
+matplot = "python testing/lidar-matplot.py"
 
 [dev-packages]
 
