@@ -1,30 +1,69 @@
 from adafruit_rplidar import RPLidar
 from math import cos, sin, pi, floor
+import time
 
 class LiDAR:    
     def __init__(self, port='/dev/ttyUSB0', max_distance=6000):
         self.port = port
         self.max_distance = max_distance
-        self.lidar = RPLidar(None, port, timeout=3)
         self.scan_data = [0] * 360
+        self.lidar = None
+        self._connect()
+
+    def _connect(self):
+        """Initialize connection with retries and reset."""
+        try:
+            self.lidar = RPLidar(None, self.port, timeout=3)
+            # stop any existing scan and reset
+            try:
+                self.lidar.stop()
+                self.lidar.stop_motor()
+            except Exception:
+                pass
+            time.sleep(0.5)
+            # clear buffer
+            self.lidar.clear_input()
+            time.sleep(0.2)
+            # start motor (if your model requires it; comment out if not)
+            # self.lidar.start_motor()
+            # time.sleep(1)
+            print("LiDAR connected successfully")
+        except Exception as e:
+            print(f"LiDAR connection error: {e}")
+            self.lidar = None
 
     def get_scan(self):
         """
         Retrieve one complete scan from the LiDAR.
         Returns: list of 360 distances (one per degree 0-359).
         """
-        try:
-            for scan in self.lidar.iter_scans():
-                # each scan is iterable of (quality, angle, distance) tuples
-                scan_data = [0] * 360
-                for (_, angle, distance) in scan:
-                    idx = min(359, int(floor(angle)))
-                    scan_data[idx] = distance
-                self.scan_data = scan_data
-                return scan_data
-        except Exception as e:
-            print(f"LiDAR error: {e}")
+        if not self.lidar:
+            print("LiDAR not connected")
             return self.scan_data
+        
+        retries = 3
+        for attempt in range(retries):
+            try:
+                for scan in self.lidar.iter_scans():
+                    scan_data = [0] * 360
+                    for (_, angle, distance) in scan:
+                        idx = min(359, int(floor(angle)))
+                        scan_data[idx] = distance
+                    self.scan_data = scan_data
+                    return scan_data
+            except Exception as e:
+                print(f"LiDAR scan error (attempt {attempt+1}/{retries}): {e}")
+                if attempt < retries - 1:
+                    # try to reset connection
+                    try:
+                        self.lidar.stop()
+                        self.lidar.clear_input()
+                        time.sleep(0.5)
+                    except Exception:
+                        pass
+                else:
+                    print("LiDAR scan failed after retries")
+        return self.scan_data
 
     def get_scans(self, num_scans=1):
         """
@@ -63,7 +102,8 @@ class LiDAR:
 
     def stop(self):
         try:
-            self.lidar.stop()
-            self.lidar.disconnect()
-        except Exception:
-            pass
+            if self.lidar:
+                self.lidar.stop()
+                self.lidar.disconnect()
+        except Exception as e:
+            print(f"LiDAR stop error: {e}")
