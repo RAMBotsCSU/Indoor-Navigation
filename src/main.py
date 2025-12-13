@@ -2,6 +2,7 @@ import sys
 import asyncio
 import os
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import QTimer
 
 from LiDAR import LiDAR
 from RobotController import RobotController
@@ -94,14 +95,25 @@ def main():
     ui = RobotMonitor(odom_estimator, running_map)
     ui.show()
 
-    # --- Motion script ---
-    motion_task = asyncio.create_task(motion_script(controller))
+    # --- Motion script (create within running loop) ---
+    motion_task = loop.create_task(motion_script(controller))
+
+    # --- Integrate asyncio loop with Qt ---
+    def process_events():
+        """Process asyncio events while Qt is running."""
+        loop.call_soon(loop.stop)
+        loop.run_forever()
+    
+    timer = QTimer()
+    timer.timeout.connect(process_events)
+    timer.start(10)  # Process asyncio events every 10ms
 
     try:
         sys.exit(app.exec())
     finally:
         # --- Cleanup ---
         print("Shutting down...")
+        timer.stop()
         motion_task.cancel()
         try:
             loop.run_until_complete(motion_task)
@@ -117,7 +129,6 @@ def main():
         running_map.save_heatmap(final_path)
         print(f"[Heatmap] Final map saved: {final_path}")
 
-        loop.stop()
         loop.close()
 
 
