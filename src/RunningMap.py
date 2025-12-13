@@ -1,6 +1,8 @@
 import numpy as np
 import math
 from typing import Tuple
+import os
+import matplotlib.pyplot as plt
 
 class RunningMap:
     def __init__(self, grid_size=200, cell_size_cm=5, max_distance_mm=6000):
@@ -64,3 +66,24 @@ class RunningMap:
 
     def reset(self):
         self.map.fill(0.0)
+
+
+    def save_heatmap(self, out_path, cmap="hot", normalize=True):
+        """
+        Save the overall accumulated map as an image.
+        """
+        os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+
+        map_data = self.overall_map.copy()
+        if normalize:
+            max_val = np.max(map_data)
+            if max_val > 0:
+                map_data = map_data / max_val
+
+        fig, ax = plt.subplots(figsize=(8, 8))
+        im = ax.imshow(map_data, cmap=cmap, origin="lower")
+        ax.set_title("Accumulated Map")
+        plt.colorbar(im, ax=ax, label="accumulated hits")
+        plt.tight_layout()
+        plt.savefig(out_path)
+        plt.close()
