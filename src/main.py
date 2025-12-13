@@ -1,15 +1,20 @@
 from LiDAR import LiDAR
 from Odometry import Odometry
 from RunningMap import RunningMap
+from LiDAR_UI import LiDAR_UI
 import asyncio
 import os
 
 
 async def main():
+    lidar = None
+    odo = None
+    ui = None
+    
     try:
         # initialize components
         lidar = LiDAR('/dev/ttyUSB0')
-        await lidar.connect()  # async connect
+        await lidar.connect()
         rm = RunningMap(grid_size=200, cell_size_cm=5, max_distance_mm=6000)
         odo = Odometry()
         
@@ -17,6 +22,12 @@ async def main():
         await odo.connect()
         await odo.enable()
         print("Odometry enabled")
+
+        # initialize UI
+        ui = LiDAR_UI(lidar, rm, odo)
+        
+        # start UI in background task
+        ui_task = asyncio.create_task(ui.run())
 
         # prepare outputs directory (absolute path)
         project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -34,33 +45,54 @@ async def main():
             x, y, theta = odo.pose()
             print(f"Robot pose: x={x:.2f} cm, y={y:.2f} cm, theta={theta:.4f} rad")
 
-            # update map and save snapshot
+            # update map (UI will automatically update)
             rm.heatmap_from_scan(scan, position=(x, y))
+            
+            # save snapshot
             step_path = os.path.join(out_dir, f"map_step_{i+1:03d}.png")
             rm.save_overall_map(step_path)
             print(f"Saved step image to {os.path.abspath(step_path)}")
+            
+            # small delay to allow UI to update
+            await asyncio.sleep(0.1)
 
-        # optional: save final accumulated map as a separate file
+        # save final accumulated map
         final_path = os.path.join(out_dir, "map_final.png")
         rm.save_overall_map(final_path)
         print(f"Saved final accumulated map to {os.path.abspath(final_path)}")
 
-        lidar.stop()
+        # wait a bit for final UI update
+        await asyncio.sleep(1.0)
+        
+        # stop UI
+        if ui:
+            await ui.stop()
+        await ui_task
 
     except KeyboardInterrupt:
         print("Interrupted by user")
-        try:
-            lidar.stop()
-            odo.stop()
-        except Exception:
-            pass
     except Exception as e:
         print(f"Error: {e}")
-        try:
-            lidar.stop()
-            odo.stop()
-        except Exception:
-            pass
+        import traceback
+        traceback.print_exc()
+    finally:
+        # cleanup
+        print("Cleaning up...")
+        if ui:
+            try:
+                await ui.stop()
+            except Exception as e:
+                print(f"Error stopping UI: {e}")
+        if lidar:
+            try:
+                lidar.stop()
+            except Exception as e:
+                print(f"Error stopping LiDAR: {e}")
+        if odo:
+            try:
+                odo.stop()
+            except Exception as e:
+                print(f"Error stopping Odometry: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())

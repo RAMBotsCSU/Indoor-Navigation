@@ -1,139 +1,119 @@
-import odrive
 import asyncio
+import time
 import math
+from collections import deque
 from typing import Tuple
-# FIX: import enums explicitly; odrive may not expose `enums` attribute
-from odrive.enums import (
-    CONTROL_MODE_POSITION_CONTROL,
-    INPUT_MODE_PASSTHROUGH,
-    AXIS_STATE_CLOSED_LOOP_CONTROL,
-)
+import odrive
 
+# Robot parameters (cm)
 WHEEL_RADIUS = 15.5
 WHEEL_CIRCUMFERENCE = 2 * math.pi * WHEEL_RADIUS
-WHEEL_BASE = 59.0 
+WHEEL_BASE = 59.0
 GEAR_RATIO = 1.0
 
-# Arrival tuning
-POS_TOL = 0.005
-TIMEOUT = 8.0
 
 class Odometry:
-    def __init__(self):
+    def __init__(self, history_size: int = 5000):
+        # ODrive
         self.odrv = None
         self.a0 = None
         self.a1 = None
 
+        # Pose state (cm, cm, rad)
         self.x = 0.0
         self.y = 0.0
-        self.th = 0.0  # radians
+        self.th = 0.0
 
+        # Encoder state
         self.last0 = 0.0
         self.last1 = 0.0
+        self.last_time = None
+
+        # Pose history for interpolation
+        self.history = deque(maxlen=history_size)
+
+        self._running = False
 
     async def connect(self):
-        """Find ODrive asynchronously."""
         loop = asyncio.get_event_loop()
         self.odrv = await loop.run_in_executor(None, odrive.find_any)
         self.a0 = self.odrv.axis0
         self.a1 = self.odrv.axis1
-        return self
 
-    async def enable(self):
-        # position control
-        self.a0.controller.config.control_mode = CONTROL_MODE_POSITION_CONTROL
-        self.a1.controller.config.control_mode = CONTROL_MODE_POSITION_CONTROL
-
-        # input pos = current pos
-        self.a0.controller.config.input_mode = INPUT_MODE_PASSTHROUGH
-        self.a1.controller.config.input_mode = INPUT_MODE_PASSTHROUGH
-
-        # sync the two
-        self.a0.controller.input_pos = self.a0.encoder.pos_estimate
-        self.a1.controller.input_pos = self.a1.encoder.pos_estimate
-
-        # closed loop control
-        self.a0.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
-        self.a1.requested_state = AXIS_STATE_CLOSED_LOOP_CONTROL
-
-        # set start point with encoders
-        await asyncio.sleep(0.1)
+        # Initialize encoder baselines
         self.last0 = float(self.a0.encoder.pos_estimate)
         self.last1 = float(self.a1.encoder.pos_estimate)
+        self.last_time = time.monotonic()
 
-    # Simple movement function
-    async def _move_to(self, target0, target1, timeout=TIMEOUT):
-        self.a0.controller.input_pos = target0
-        self.a1.controller.input_pos = target1
+        # Store initial pose
+        self.history.append((self.last_time, self.x, self.y, self.th))
+        return self
 
-        t0 = asyncio.get_event_loop().time()
+    async def start(self, rate_hz: int = 200):
+        """
+        Start continuous odometry updates.
+        """
+        self._running = True
+        period = 1.0 / rate_hz
 
-        while True:
-            p0 = float(self.a0.encoder.pos_estimate)
-            p1 = float(self.a1.encoder.pos_estimate)
+        while self._running:
+            self._update_from_encoders()
+            await asyncio.sleep(period)
 
-            if abs(p0 - target0) <= POS_TOL and abs(p1 - target1) <= POS_TOL:
-                self._update_odometry(p0, p1)
-                return True
+    def stop(self):
+        self._running = False
 
-            if asyncio.get_event_loop().time() - t0 > timeout:
-                self._update_odometry(p0, p1)
-                return False
+    def _update_from_encoders(self):
+        now = time.monotonic()
 
-            await asyncio.sleep(0.01)
+        p0 = float(self.a0.encoder.pos_estimate)
+        p1 = float(self.a1.encoder.pos_estimate)
 
-    # Move forward a specific distance in cm
-    async def forward_cm(self, distance_cm: float):
-        # wheel revolutions
-        wheel_revs = distance_cm / WHEEL_CIRCUMFERENCE
-        motor_turns = wheel_revs * GEAR_RATIO
-
-        start0 = float(self.a0.encoder.pos_estimate)
-        start1 = float(self.a1.encoder.pos_estimate)
-
-        return await self._move_to(start0 - motor_turns,
-                                   start1 + motor_turns)
-
-    async def turn_deg(self, angle_deg: float):
-        theta_rad = math.radians(angle_deg)
-
-        # arc per wheel (cm). Left = -arc, right = +arc for CCW.
-        arc_cm = (theta_rad * WHEEL_BASE) / 2.0
-        wheel_revs = arc_cm / WHEEL_CIRCUMFERENCE
-        motor_turns = wheel_revs * GEAR_RATIO
-
-        start0 = float(self.a0.encoder.pos_estimate)
-        start1 = float(self.a1.encoder.pos_estimate)
-
-        return await self._move_to(start0 + motor_turns,
-                                   start1 + motor_turns)
-
-    # update odometry
-    def _update_odometry(self, p0: float, p1: float):
         d0 = p0 - self.last0
         d1 = p1 - self.last1
 
         self.last0 = p0
         self.last1 = p1
 
-        # convert motor turns to wheel linear displacement
+        # Convert motor turns → wheel displacement (cm)
         dL = (d0 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE
         dR = (d1 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE
 
         d_center = (dL + dR) / 2.0
         d_theta = (dR - dL) / WHEEL_BASE
 
-        # integrate
+        # Integrate pose
         self.x += d_center * math.cos(self.th + d_theta / 2.0)
         self.y += d_center * math.sin(self.th + d_theta / 2.0)
         self.th += d_theta
 
+        self.last_time = now
+
+        # Store timestamped pose
+        self.history.append((now, self.x, self.y, self.th))
+
+
     def pose(self) -> Tuple[float, float, float]:
+        """Current pose."""
         return self.x, self.y, self.th
 
-    def stop(self):
-        # hold current position
-        p0 = float(self.a0.encoder.pos_estimate)
-        p1 = float(self.a1.encoder.pos_estimate)
-        self.a0.controller.input_pos = p0
-        self.a1.controller.input_pos = p1
+    def interpolate(self, timestamp: float) -> Tuple[float, float, float]:
+        """
+        Interpolate pose at an arbitrary timestamp (for LiDAR fusion).
+        """
+        if len(self.history) < 2:
+            return self.x, self.y, self.th
+
+        for i in range(len(self.history) - 1):
+            t0, x0, y0, th0 = self.history[i]
+            t1, x1, y1, th1 = self.history[i + 1]
+
+            if t0 <= timestamp <= t1:
+                alpha = (timestamp - t0) / (t1 - t0)
+                x = x0 + alpha * (x1 - x0)
+                y = y0 + alpha * (y1 - y0)
+                th = th0 + alpha * (th1 - th0)
+                return x, y, th
+
+        # If timestamp is newer than history
+        return self.history[-1][1:]
