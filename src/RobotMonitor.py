@@ -4,8 +4,7 @@ from PyQt6.QtGui import QPainter, QImage
 import numpy as np
 import math
 
-
-class LiDAR_UI(QWidget):
+class RobotMonitor(QWidget):
     def __init__(self, odom, running_map, update_hz=10):
         super().__init__()
 

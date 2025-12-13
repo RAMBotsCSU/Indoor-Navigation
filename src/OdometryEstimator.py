@@ -11,8 +11,7 @@ WHEEL_CIRCUMFERENCE = 2 * math.pi * WHEEL_RADIUS
 WHEEL_BASE = 59.0
 GEAR_RATIO = 1.0
 
-
-class Odometry:
+class OdometryEstimator:
     def __init__(self, history_size: int = 5000):
         # ODrive
         self.odrv = None
