@@ -68,9 +68,12 @@ def main():
     ui = RobotMonitor(odom_estimator, running_map)
     ui.show()
 
-    # --- Motion task ---
-    motion_task = asyncio.create_task(motion_script(controller))
-
+    # --- Motion task (create it in a running loop context) ---
+    async def start_motion():
+        return asyncio.create_task(motion_script(controller))
+    
+    motion_task = loop.run_until_complete(start_motion())
+    
     try:
         sys.exit(app.exec())
     finally:
