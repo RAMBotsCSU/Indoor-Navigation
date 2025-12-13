@@ -1,12 +1,11 @@
 import sys
 import asyncio
-import os
 from PyQt6.QtWidgets import QApplication
 
 from LiDAR import LiDAR
 from Odometry import Odometry
 from RunningMap import RunningMap
-from LiDAR_UI import LiDAR_UI
+from LiDAR_UI import LiDAR_UI  # single-class UI from previous discussion
 
 
 async def fusion_loop(lidar, odom, running_map):
@@ -15,6 +14,7 @@ async def fusion_loop(lidar, odom, running_map):
     """
     while True:
         ts, angle, dist = await lidar.queue.get()
+        # Get interpolated odometry at LiDAR timestamp
         pose = odom.interpolate(ts)
         running_map.integrate_point(angle, dist, pose)
 
@@ -26,11 +26,11 @@ async def async_setup():
     # --- Odometry ---
     odom = Odometry()
     await odom.connect()
-    asyncio.create_task(odom.start(rate_hz=200))
+    asyncio.create_task(odom.start(rate_hz=200))  # continuously updates pose
 
     # --- LiDAR ---
     lidar = LiDAR('/dev/ttyUSB0')
-    lidar.start(asyncio.get_running_loop())
+    lidar.start(asyncio.get_running_loop())  # start streaming in background thread
 
     # --- Mapping ---
     running_map = RunningMap(
@@ -39,7 +39,7 @@ async def async_setup():
         max_distance_mm=6000
     )
 
-    # --- Fusion loop ---
+    # --- Fusion ---
     asyncio.create_task(fusion_loop(lidar, odom, running_map))
 
     return lidar, odom, running_map
@@ -50,12 +50,12 @@ def main():
     Qt MUST run in main thread.
     asyncio runs in background.
     """
-    # --- Qt App ---
     app = QApplication(sys.argv)
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
+    # Setup all async components
     lidar, odom, running_map = loop.run_until_complete(async_setup())
 
     # --- UI ---
