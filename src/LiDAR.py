@@ -13,14 +13,11 @@ class LiDAR:
         self._thread = None
         self._loop = None
 
-    def start(self, loop):
-        """Start LiDAR motor and scanning thread."""
-        self._loop = loop
-        self._running = True
-
-        # Create RPLidar here (not in __init__)
+    async def connect(self):
+        """Initialize LiDAR connection and prepare device."""
+        # Create RPLidar instance
         self.lidar = RPLidar(None, self.port, timeout=3)
-
+        
         # Stop motor & clear input
         try:
             self.lidar.stop()
@@ -28,15 +25,22 @@ class LiDAR:
         except Exception:
             pass
 
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
 
         try:
             self.lidar.clear_input()
         except Exception:
             pass
 
-        time.sleep(0.2)
+        await asyncio.sleep(0.2)
+        print("LiDAR connected and ready")
 
+    def start(self, loop):
+        """Start LiDAR motor and scanning thread."""
+        self._loop = loop
+        self._running = True
+
+        # Start motor
         self.lidar.start_motor()
         time.sleep(1.0)  # let motor spin up
 
