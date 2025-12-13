@@ -1,13 +1,8 @@
 from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPainter
-import math
-
-import math
-import numpy as np
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout
-from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtCore import Qt, QTimer, QRect
 from PyQt6.QtGui import QPainter, QImage
+import numpy as np
+import math
 
 
 class LiDAR_UI(QWidget):
@@ -57,7 +52,7 @@ class LiDAR_UI(QWidget):
             self.width() - 2 * margin,
             self.height() - top - margin
         )
-        return Qt.QRect(
+        return QRect(
             margin,
             top,
             size,
