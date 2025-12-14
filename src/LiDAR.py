@@ -14,62 +14,66 @@ class LiDAR:
         self._loop = None
 
     async def connect(self):
-        """Initialize LiDAR connection and prepare device."""
-        # Create RPLidar instance
+        """Initialize LiDAR connection and reset device."""
         self.lidar = RPLidar(None, self.port, timeout=3)
-        
-        # Stop motor & clear input
+
+        # Hard reset and clear input
         try:
             self.lidar.stop()
             self.lidar.stop_motor()
-        except Exception:
-            pass
-
-        await asyncio.sleep(0.5)
-
-        try:
+            time.sleep(0.5)
             self.lidar.clear_input()
+            time.sleep(0.5)
         except Exception:
             pass
 
-        await asyncio.sleep(0.2)
-        print("LiDAR connected and ready")
+        print("LiDAR connected and reset")
 
     def start(self, loop):
-        """Start LiDAR motor and scanning thread."""
+        """Start motor and scanning thread."""
+        if self.lidar is None:
+            raise RuntimeError("LiDAR not connected")
         self._loop = loop
         self._running = True
 
         # Start motor
         self.lidar.start_motor()
-        time.sleep(1.0)  # let motor spin up
+        time.sleep(1.5)  # IMPORTANT: allow motor spinup
 
-        # Start scanning thread
+        # Start scan thread
         self._thread = threading.Thread(target=self._scan_loop, daemon=True)
         self._thread.start()
 
     def _scan_loop(self):
-        """Read measurements from LiDAR and push to asyncio queue."""
+        """Push LiDAR measurements to asyncio queue."""
         try:
-            for new_scan, quality, angle, distance in self.lidar.iter_measurments():
-                if not self._running:
+            iterator = self.lidar.iter_measurements()
+            while self._running:
+                try:
+                    new_scan, quality, angle, distance = next(iterator)
+                except StopIteration:
                     break
+                except Exception:
+                    continue
 
                 if distance <= 0 or distance > self.max_distance:
                     continue
 
-                timestamp = time.monotonic()
-                # Push to asyncio queue thread-safely
-                self._loop.call_soon_threadsafe(
-                    self.queue.put_nowait, (timestamp, angle, distance)
-                )
+                ts = time.monotonic()
+                try:
+                    self._loop.call_soon_threadsafe(
+                        self.queue.put_nowait, (ts, angle, distance)
+                    )
+                except asyncio.QueueFull:
+                    pass
+
         except Exception as e:
-            print("LiDAR error:", e)
+            print("LiDAR thread exited:", e)
 
     async def stop(self):
         """Stop scanning and motor."""
         self._running = False
-        await asyncio.sleep(0)  # allow thread to exit
+        await asyncio.sleep(0)
         try:
             if self.lidar:
                 self.lidar.stop()
