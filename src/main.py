@@ -46,6 +46,7 @@ async def async_setup(loop):
     # --- LiDAR ---
     lidar = LiDAR("/dev/ttyUSB0")
     lidar.connect()
+    await asyncio.sleep(1.0)
     lidar.start(loop)
 
     # --- Map ---
