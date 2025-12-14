@@ -9,6 +9,7 @@ from OdometryEstimator import OdometryEstimator
 from RunningMap import RunningMap
 
 async def fusion_loop(lidar, odom, running_map, max_age_sec=0.25, drain_threshold=0.8):
+    sample_count = 0
     while True:
         ts, angle, dist = await lidar.queue.get()
 
@@ -26,6 +27,12 @@ async def fusion_loop(lidar, odom, running_map, max_age_sec=0.25, drain_threshol
 
         pose = odom.interpolate(ts)
         running_map.integrate_point(angle, dist, pose)
+        
+        # Print position periodically (every 100 samples to avoid spam)
+        sample_count += 1
+        if sample_count % 100 == 0:
+            x, y, theta = pose
+            print(f"[Fusion] pos: x={x:.2f} cm, y={y:.2f} cm, θ={theta:.4f} rad, queue={lidar.queue.qsize()}")
 
 async def motion_script(controller):
     try:
