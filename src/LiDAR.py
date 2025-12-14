@@ -47,14 +47,9 @@ class LiDAR:
     def _scan_loop(self):
         """Push LiDAR measurements to asyncio queue."""
         try:
-            iterator = self.lidar.iter_measurements()
-            while self._running:
-                try:
-                    new_scan, quality, angle, distance = next(iterator)
-                except StopIteration:
+            for new_scan, quality, angle, distance in self.lidar.iter_measurments():
+                if not self._running:
                     break
-                except Exception:
-                    continue
 
                 if distance <= 0 or distance > self.max_distance:
                     continue
@@ -66,9 +61,9 @@ class LiDAR:
                     )
                 except asyncio.QueueFull:
                     pass
-
         except Exception as e:
             print("LiDAR thread exited:", e)
+
 
     async def stop(self):
         """Stop scanning and motor."""
