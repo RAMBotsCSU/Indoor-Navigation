@@ -53,12 +53,8 @@ async def main():
     # --- Example autonomous routine ---
     try:
         for i in range(50):
-            print(f"Step {i+1}: move forward 10 cm")
-            await controller.forward_cm(10)
-            await asyncio.sleep(0.1)
-
-            print(f"Step {i+1}: turn 15 deg CCW")
-            await controller.turn_deg(15)
+            print(f"Step {i+1}: move forward 50 cm")
+            await controller.forward_cm(50)
             await asyncio.sleep(0.1)
 
     except KeyboardInterrupt:
