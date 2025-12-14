@@ -4,7 +4,7 @@ import asyncio
 from adafruit_rplidar import RPLidar
 
 class LiDAR:
-    def __init__(self, port="/dev/ttyUSB0", max_distance=6000, test_output=True):
+    def __init__(self, port="/dev/ttyUSB0", max_distance=6000, test_output=True, queue_maxsize=500):
         """
         port: serial port of the LiDAR
         max_distance: maximum distance to accept in mm
@@ -16,7 +16,7 @@ class LiDAR:
         self._running = False
         self._thread = None
         self._loop = None
-        self.queue = asyncio.Queue(maxsize=2000)
+        self.queue = asyncio.Queue(maxsize=queue_maxsize)
         self.test_output = test_output
 
     async def connect(self):

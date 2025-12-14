@@ -1,15 +1,29 @@
 import asyncio
 import signal
 import os
+import time
 
 from LiDAR import LiDAR
 from RobotController import RobotController
 from OdometryEstimator import OdometryEstimator
 from RunningMap import RunningMap
 
-async def fusion_loop(lidar, odom, running_map):
+async def fusion_loop(lidar, odom, running_map, max_age_sec=0.25, drain_threshold=0.8):
     while True:
         ts, angle, dist = await lidar.queue.get()
+
+        # drop stale samples
+        if time.monotonic() - ts > max_age_sec:
+            continue
+
+        # trim backlog if queue is getting full
+        try:
+            if lidar.queue.qsize() > lidar.queue.maxsize * drain_threshold:
+                while lidar.queue.qsize() > lidar.queue.maxsize * 0.5:
+                    lidar.queue.get_nowait()
+        except Exception:
+            pass
+
         pose = odom.interpolate(ts)
         running_map.integrate_point(angle, dist, pose)
 
