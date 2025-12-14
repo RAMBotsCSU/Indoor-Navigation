@@ -5,6 +5,8 @@ import asyncio
 import os
 import signal
 import sys
+import subprocess
+import time
 
 # Global variables for cleanup
 lidar = None
@@ -16,6 +18,22 @@ def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully."""
     print("\nShutdown signal received, cleaning up...")
     shutdown_event.set()
+
+
+def reset_lidar_port(port='/dev/ttyUSB0'):
+    """Reset the serial port to ensure clean connection."""
+    try:
+        print(f"Resetting LiDAR port {port}...")
+        # Try to remove and re-probe the USB device
+        subprocess.run(['sudo', 'bash', '-c', f'echo "1-1" > /sys/bus/usb/drivers/usb/unbind'], 
+                      timeout=5, capture_output=True)
+        time.sleep(1)
+        subprocess.run(['sudo', 'bash', '-c', f'echo "1-1" > /sys/bus/usb/drivers/usb/bind'], 
+                      timeout=5, capture_output=True)
+        time.sleep(2)
+        print("Port reset complete")
+    except Exception as e:
+        print(f"Port reset failed (non-critical): {e}")
 
 
 async def cleanup():
@@ -35,6 +53,9 @@ async def cleanup():
 async def main():
     global lidar, odo
     try:
+        # Reset LiDAR port before initialization
+        reset_lidar_port('/dev/ttyUSB0')
+        
         # initialize components
         lidar = LiDAR('/dev/ttyUSB0')
         rm = RunningMap(grid_size=200, cell_size_cm=5, max_distance_mm=6000)
