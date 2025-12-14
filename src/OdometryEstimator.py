@@ -68,28 +68,30 @@ class OdometryEstimator:
         p0 = float(self.a0.encoder.pos_estimate)
         p1 = float(self.a1.encoder.pos_estimate)
 
+        # encoder deltas
         d0 = p0 - self.last0
         d1 = p1 - self.last1
 
         self.last0 = p0
         self.last1 = p1
 
-        # Convert motor turns → wheel displacement (cm)
-        dL = (d0 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE
+        # convert to cm
+        # axis0 spins opposite of axis1 for forward motion
+        dL = (-d0 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE  # flip sign for forward
         dR = (d1 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE
 
+        # center displacement and rotation
         d_center = (dL + dR) / 2.0
         d_theta = (dR - dL) / WHEEL_BASE
 
-        # Integrate pose
+        # integrate pose
         self.x += d_center * math.cos(self.th + d_theta / 2.0)
         self.y += d_center * math.sin(self.th + d_theta / 2.0)
         self.th += d_theta
 
         self.last_time = now
-
-        # Store timestamped pose
         self.history.append((now, self.x, self.y, self.th))
+
 
 
     def pose(self) -> Tuple[float, float, float]:
