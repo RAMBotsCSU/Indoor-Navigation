@@ -3,7 +3,7 @@ import json
 import numpy as np
 import tensorflow as tf
 
-from live_rssi import scan_iw
+from LiveRSSI import scan_iw
 from feature_vector import build_feature_vector
 
 # ---------- SETTINGS ----------

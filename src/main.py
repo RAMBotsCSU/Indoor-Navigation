@@ -102,7 +102,7 @@ def main():
         os.makedirs("outputs", exist_ok=True)
         final_path = "outputs/map_final.png"
         running_map.save_heatmap(final_path)
-        print(f"[Map] final saved → {final_path}")
+        print(f"[Map] final saved to {final_path}")
 
         loop.stop()
         loop.close()
