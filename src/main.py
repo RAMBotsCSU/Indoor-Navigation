@@ -49,14 +49,16 @@ async def main():
     except KeyboardInterrupt:
         print("Interrupted by user")
         try:
-            lidar.stop()
+            if lidar:
+                lidar.stop()
             odo.stop()
         except Exception:
             pass
     except Exception as e:
         print(f"Error: {e}")
         try:
-            lidar.stop()
+            if lidar:
+                lidar.stop()
             odo.stop()
         except Exception:
             pass

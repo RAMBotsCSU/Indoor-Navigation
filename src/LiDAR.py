@@ -1,12 +1,45 @@
 from adafruit_rplidar import RPLidar
 from math import cos, sin, pi, floor
+import time
 
 class LiDAR:    
-    def __init__(self, port='/dev/ttyUSB0', max_distance=6000):
+    def __init__(self, port='/dev/ttyUSB0', max_distance=6000, max_retries=3):
         self.port = port
         self.max_distance = max_distance
-        self.lidar = RPLidar(None, port, timeout=3)
+        self.max_retries = max_retries
         self.scan_data = [0] * 360
+        self.lidar = None
+        self._initialize()
+
+    def _initialize(self):
+        """Initialize LiDAR with retry logic to handle descriptor errors."""
+        for attempt in range(self.max_retries):
+            try:
+                # Clean up any existing connection
+                if self.lidar is not None:
+                    try:
+                        self.lidar.stop()
+                        self.lidar.disconnect()
+                    except Exception:
+                        pass
+                
+                self.lidar = RPLidar(None, self.port, timeout=3)
+                time.sleep(0.5)
+                
+                # Verify connection by attempting a test scan
+                test_scan = None
+                for scan in self.lidar.iter_scans():
+                    test_scan = scan
+                    break
+                
+                if test_scan is not None:
+                    print(f"LiDAR initialized successfully on attempt {attempt + 1}")
+                    return
+            except Exception as e:
+                print(f"LiDAR init attempt {attempt + 1} failed: {e}")
+                time.sleep(1)
+        
+        raise Exception("Failed to initialize LiDAR after maximum retries")
 
     def get_scan(self):
         """
@@ -23,7 +56,12 @@ class LiDAR:
                 self.scan_data = scan_data
                 return scan_data
         except Exception as e:
-            print(f"LiDAR error: {e}")
+            print(f"LiDAR scan error: {e}")
+            # Attempt recovery
+            try:
+                self._initialize()
+            except Exception as recovery_error:
+                print(f"LiDAR recovery failed: {recovery_error}")
             return self.scan_data
 
     def get_scans(self, num_scans=1):
@@ -43,6 +81,11 @@ class LiDAR:
                 scans.append(scan_data)
         except Exception as e:
             print(f"LiDAR error: {e}")
+            # Attempt recovery
+            try:
+                self._initialize()
+            except Exception as recovery_error:
+                print(f"LiDAR recovery failed: {recovery_error}")
         return scans
 
     def get_point(self, angle_deg):
