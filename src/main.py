@@ -28,10 +28,10 @@ async def motion_script(controller):
     """Simple autonomous motion script."""
     try:
         while True:
-            await controller.forward_cm(10.0)
+            await controller.forward_cm(50.0)
             await asyncio.sleep(0.1)
-            await controller.turn_deg(15.0)
-            await asyncio.sleep(0.1)
+            #await controller.turn_deg(15.0)
+            #await asyncio.sleep(0.1)
     except asyncio.CancelledError:
         pass
 

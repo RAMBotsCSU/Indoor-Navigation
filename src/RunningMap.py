@@ -1,8 +1,8 @@
 import numpy as np
 import math
-from typing import Tuple
 import os
 import matplotlib.pyplot as plt
+
 
 class RunningMap:
     def __init__(self, grid_size=200, cell_size_cm=5, max_distance_mm=6000):
@@ -11,79 +11,77 @@ class RunningMap:
         self.cell_size_mm = cell_size_cm * 10
         self.max_distance_mm = max_distance_mm
 
-        self.map = np.zeros((grid_size, grid_size), dtype=np.float32)
+        # Accumulated hit map
+        self.overall_map = np.zeros(
+            (grid_size, grid_size), dtype=np.float32
+        )
 
-        # Robot origin in grid
-        self.cx = grid_size // 2
-        self.cy = grid_size // 2
+    # -----------------------------------------------------
 
-    def integrate_point(
-        self,
-        angle_deg: float,
-        distance_mm: float,
-        pose: Tuple[float, float, float],
-    ):
-        """
-        Integrate a single LiDAR point into the map.
-
-        pose: (x_cm, y_cm, theta_rad)
-        """
+    def integrate_point(self, angle_deg, distance_mm, pose):
+        """Fuse one LiDAR point into the global map."""
         if distance_mm <= 0 or distance_mm > self.max_distance_mm:
             return
 
-        x_cm, y_cm, th = pose
+        x_cm, y_cm, theta = pose
 
-        # lidar point in frame
-        a = math.radians(angle_deg)
-        lx = distance_mm * math.cos(a)
-        ly = distance_mm * math.sin(a)
+        # Convert to world coordinates (cm)
+        angle_rad = math.radians(angle_deg) + theta
+        dx_cm = (distance_mm / 10.0) * math.cos(angle_rad)
+        dy_cm = (distance_mm / 10.0) * math.sin(angle_rad)
 
-        # transform to world
-        wx = lx * math.cos(th) - ly * math.sin(th)
-        wy = lx * math.sin(th) + ly * math.cos(th)
+        wx = x_cm + dx_cm
+        wy = y_cm + dy_cm
 
-        # robot pos in world
-        rx = x_cm * 10
-        ry = y_cm * 10
-
-        wx += rx
-        wy += ry
-
-        # convert to grid
-        gx = self.cx + int(wx / self.cell_size_mm)
-        gy = self.cy + int(wy / self.cell_size_mm)
+        # Convert to grid coordinates
+        gx = int(self.grid_size // 2 + wx / self.cell_size_cm)
+        gy = int(self.grid_size // 2 + wy / self.cell_size_cm)
 
         if 0 <= gx < self.grid_size and 0 <= gy < self.grid_size:
-            self.map[gy, gx] += 1.0
+            self.overall_map[gy, gx] += 1.0
 
-    def get_map(self, normalize=True):
-        if not normalize:
-            return self.map
-        max_val = np.max(self.map)
-        if max_val > 0:
-            return self.map / max_val
-        return self.map
+    # -----------------------------------------------------
 
-    def reset(self):
-        self.map.fill(0.0)
-
-
-    def save_heatmap(self, out_path, cmap="hot", normalize=True):
+    def get_local_map(self, x_cm, y_cm, size_cells=120):
         """
-        Save the overall accumulated map as an image.
+        Return a robot-centered local window of the map.
         """
-        os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
+        cx = self.grid_size // 2 + int(x_cm / self.cell_size_cm)
+        cy = self.grid_size // 2 + int(y_cm / self.cell_size_cm)
 
-        map_data = self.overall_map.copy()
-        if normalize:
-            max_val = np.max(map_data)
-            if max_val > 0:
-                map_data = map_data / max_val
+        half = size_cells // 2
 
-        fig, ax = plt.subplots(figsize=(8, 8))
-        im = ax.imshow(map_data, cmap=cmap, origin="lower")
-        ax.set_title("Accumulated Map")
-        plt.colorbar(im, ax=ax, label="accumulated hits")
+        x0 = max(0, cx - half)
+        y0 = max(0, cy - half)
+        x1 = min(self.grid_size, cx + half)
+        y1 = min(self.grid_size, cy + half)
+
+        local = np.zeros((size_cells, size_cells), dtype=np.float32)
+
+        lx0 = half - (cx - x0)
+        ly0 = half - (cy - y0)
+
+        local[
+            ly0:ly0 + (y1 - y0),
+            lx0:lx0 + (x1 - x0)
+        ] = self.overall_map[y0:y1, x0:x1]
+
+        return local
+
+    # -----------------------------------------------------
+
+    def save_heatmap(self, path, cmap="hot"):
+        """Save the accumulated global map as an image."""
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+        data = self.overall_map.copy()
+        if np.max(data) > 0:
+            data /= np.max(data)
+
+        plt.figure(figsize=(8, 8))
+        plt.imshow(data, cmap=cmap, origin="lower")
+        plt.title("Accumulated Heatmap")
+        plt.colorbar(label="Hit count (normalized)")
         plt.tight_layout()
-        plt.savefig(out_path)
+        plt.savefig(path)
         plt.close()

@@ -22,9 +22,9 @@ class RobotMonitor(QWidget):
         layout.addWidget(self.pose_label)
         self.setLayout(layout)
 
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self.update)
-        self._timer.start(int(1000 / update_hz))
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update)
+        self.timer.start(int(1000 / update_hz))
 
     # -----------------------------------------------------
 
@@ -32,22 +32,19 @@ class RobotMonitor(QWidget):
         painter = QPainter(self)
         painter.fillRect(self.rect(), Qt.GlobalColor.black)
 
-        grid = self.running_map.get_map()
-        if grid is None or np.max(grid) == 0:
-            return
-
-        # Normalize for display
-        grid = grid / np.max(grid)
-
-        map_rect = self.map_rect()
-        img = self._numpy_to_qimage(grid)
-        painter.drawImage(map_rect, img)
-
-        # Draw robot
-        self._draw_robot(painter, map_rect)
-
-        # Pose label
         x, y, th = self.odom.pose()
+        grid = self.running_map.get_local_map(x, y, size_cells=120)
+
+        if np.max(grid) > 0:
+            grid = grid / np.max(grid)
+            grid = np.flipud(grid)  # flip Y for Qt
+
+            img = self._numpy_to_qimage(grid)
+            rect = self.map_rect()
+            painter.drawImage(rect, img)
+
+            self._draw_robot(painter, rect)
+
         self.pose_label.setText(
             f"x={x:.1f} cm   y={y:.1f} cm   θ={math.degrees(th):.1f}°"
         )
@@ -76,9 +73,8 @@ class RobotMonitor(QWidget):
     # -----------------------------------------------------
 
     def _numpy_to_qimage(self, grid: np.ndarray) -> QImage:
-        img = (grid * 255).clip(0, 255).astype(np.uint8)
+        img = (grid * 255).astype(np.uint8)
         h, w = img.shape
-
         return QImage(
             img.data,
             w,
