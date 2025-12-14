@@ -8,60 +8,51 @@ import math
 class RobotMonitor(QWidget):
     def __init__(self, odom, running_map, update_hz=10):
         super().__init__()
+
         self.odom = odom
         self.running_map = running_map
 
-        self.setWindowTitle("Robot Monitor")
-        self.setMinimumSize(600, 700)
+        self.setWindowTitle("Robot Mapping Monitor")
+        self.setMinimumSize(600, 650)
 
-        self.pose_label = QLabel()
+        self.pose_label = QLabel(self)
         self.pose_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        layout = QVBoxLayout(self)
+        layout = QVBoxLayout()
         layout.addWidget(self.pose_label)
+        self.setLayout(layout)
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self.update)
         self._timer.start(int(1000 / update_hz))
 
+    # -----------------------------------------------------
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), Qt.GlobalColor.black)
 
-        grid = self.running_map.get_map(normalize=True)
-        if grid is None:
+        grid = self.running_map.get_map()
+        if grid is None or np.max(grid) == 0:
             return
 
-        # --- Robot pose ---
-        x_cm, y_cm, theta = self.odom.pose()
+        # Normalize for display
+        grid = grid / np.max(grid)
 
+        map_rect = self.map_rect()
+        img = self._numpy_to_qimage(grid)
+        painter.drawImage(map_rect, img)
+
+        # Draw robot
+        self._draw_robot(painter, map_rect)
+
+        # Pose label
+        x, y, th = self.odom.pose()
         self.pose_label.setText(
-            f"x={x_cm:.1f} cm   y={y_cm:.1f} cm   θ={math.degrees(theta):.1f}°"
+            f"x={x:.1f} cm   y={y:.1f} cm   θ={math.degrees(th):.1f}°"
         )
 
-        # --- Center map on robot ---
-        cx = int(self.running_map.grid_size // 2 + x_cm / self.running_map.cell_size_cm)
-        cy = int(self.running_map.grid_size // 2 + y_cm / self.running_map.cell_size_cm)
-
-        half = 50  # visible radius in cells
-        x0 = max(0, cx - half)
-        y0 = max(0, cy - half)
-        x1 = min(grid.shape[1], cx + half)
-        y1 = min(grid.shape[0], cy + half)
-
-        view = grid[y0:y1, x0:x1]
-
-        img = self._numpy_to_qimage(view)
-        rect = self.map_rect()
-        painter.drawImage(rect, img)
-
-        # --- Draw robot dot ---
-        px = rect.center().x()
-        py = rect.center().y()
-
-        painter.setBrush(QColor(255, 0, 0))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawEllipse(px - 4, py - 4, 8, 8)
+    # -----------------------------------------------------
 
     def map_rect(self):
         margin = 10
@@ -72,13 +63,26 @@ class RobotMonitor(QWidget):
         )
         return QRect(margin, top, size, size)
 
+    # -----------------------------------------------------
+
+    def _draw_robot(self, painter, rect):
+        cx = rect.center().x()
+        cy = rect.center().y()
+
+        painter.setBrush(QColor(255, 0, 0))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(cx - 4, cy - 4, 8, 8)
+
+    # -----------------------------------------------------
+
     def _numpy_to_qimage(self, grid: np.ndarray) -> QImage:
         img = (grid * 255).clip(0, 255).astype(np.uint8)
         h, w = img.shape
+
         return QImage(
             img.data,
             w,
             h,
-            w * img.itemsize,
+            w,
             QImage.Format.Format_Grayscale8
         )
