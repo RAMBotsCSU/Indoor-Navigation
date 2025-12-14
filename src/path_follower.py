@@ -41,13 +41,16 @@ class PathFollower:
         self.max_turn_deg = max_turn_deg
 
         # load classmap (map-units already converted inside PoseProvider)
-        base = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(base, classmap_path)) as f:
-            cm = json.load(f)
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        INCLUDE_DIR = os.path.join(BASE_DIR, "..", "include")
+
+        with open(os.path.join(INCLUDE_DIR, "classmap.json")) as f:
+            _classmap = json.load(f)
 
         self.cell_xy_map_units = {
-            int(k): (v["x"], v["y"]) for k, v in cm["cells"].items()
+            int(k): (v["x"], v["y"]) for k, v in _classmap["cells"].items()
         }
+       
 
     async def follow(self, path: List[int]):
         """

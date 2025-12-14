@@ -7,11 +7,12 @@ import math
 # Load map + neighbors once
 # -------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INCLUDE_DIR = os.path.join(BASE_DIR, "..", "include")
 
-with open(os.path.join(BASE_DIR, "classmap.json")) as f:
+with open(os.path.join(INCLUDE_DIR, "classmap.json")) as f:
     _classmap = json.load(f)["cells"]
 
-with open(os.path.join(BASE_DIR, "neighbors.json")) as f:
+with open(os.path.join(INCLUDE_DIR, "neighbors.json")) as f:
     _neighbors = json.load(f)["neighbors"]
 
 # Convert keys
