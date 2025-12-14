@@ -22,13 +22,13 @@ INCLUDE_DIR = os.path.join(BASE_DIR, "..", "include")
 MODELS_DIR  = os.path.join(BASE_DIR, "..", "Navigation_files")
 
 BSSID_ORDER_PATH = os.path.join(INCLUDE_DIR, "bssid_order.json")
-CLASSMAP_PATH     = os.path.join(MODELS_DIR, "classmap.json")
+CLASSMAP_PATH     = os.path.join(INCLUDE_DIR, "classmap.json")
 
 # If your model is stored elsewhere, change this path.
 # Common choices:
 #   ../include/model.tflite
 #   ../models/model.tflite
-DEFAULT_MODEL_PATH = os.path.join(INCLUDE_DIR, "nav_fp32.tflite")
+DEFAULT_MODEL_PATH = os.path.join(MODELS_DIR, "nav_fp32.tflite")
 
 
 # ----------------------------
