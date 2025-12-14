@@ -1,119 +1,80 @@
 import asyncio
-import signal
 import os
 import time
-
 from LiDAR import LiDAR
 from RobotController import RobotController
 from OdometryEstimator import OdometryEstimator
 from RunningMap import RunningMap
 
-async def fusion_loop(lidar, odom, running_map, max_age_sec=0.25, drain_threshold=0.8):
-    sample_count = 0
+OUTPUT_DIR = "outputs"
+CAPTURE_INTERVAL = 1.0  # seconds
+
+async def fusion_loop(lidar, odom, running_map):
+    """Continuously integrate LiDAR points into the map."""
     while True:
         ts, angle, dist = await lidar.queue.get()
-
-        # drop stale samples
-        if time.monotonic() - ts > max_age_sec:
-            continue
-
-        # trim backlog if queue is getting full
-        if lidar.queue.qsize() > lidar.queue.maxsize * drain_threshold:
-            while lidar.queue.qsize() > lidar.queue.maxsize * 0.5:
-                try:
-                    lidar.queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    break
-
         pose = odom.interpolate(ts)
         running_map.integrate_point(angle, dist, pose)
-        
-        # Print position periodically (every 100 samples to avoid spam)
-        sample_count += 1
-        if sample_count % 100 == 0:
-            x, y, theta = pose
-            print(f"[Fusion] pos: x={x:.2f} cm, y={y:.2f} cm, θ={theta:.4f} rad, queue={lidar.queue.qsize()}")
 
-async def motion_script(controller):
-    try:
-        while True:
-            await controller.forward_cm(50)
-            await asyncio.sleep(0.2)
-    except asyncio.CancelledError:
-        print("[Motion] stopped")
-
-async def save_map_frames(running_map, interval=1.0, out_dir="outputs"):
-    os.makedirs(out_dir, exist_ok=True)
-    frame = 0
+async def capture_heatmap_loop(running_map, interval=CAPTURE_INTERVAL):
+    """Optional: save intermediate heatmaps during mapping."""
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    step = 0
     while True:
-        await asyncio.sleep(interval)
-        frame += 1
-        path = os.path.join(out_dir, f"map_{frame:04d}.png")
+        step += 1
+        path = os.path.join(OUTPUT_DIR, f"map_step_{step:04d}.png")
         running_map.save_heatmap(path)
-        print(f"[Map] saved {path}")
+        print(f"[Heatmap] saved {path}")
+        await asyncio.sleep(interval)
 
-async def setup():
-    controller = RobotController()
-    await controller.connect()
-    await controller.enable()
-
+async def main():
+    # --- Initialize odometry ---
     odom = OdometryEstimator()
     await odom.connect()
     asyncio.create_task(odom.start(rate_hz=200))
 
-    lidar = LiDAR("/dev/ttyUSB0")
+    # --- Initialize robot controller ---
+    controller = RobotController()
+    await controller.connect()
+    await controller.enable()
+
+    # --- Initialize LiDAR ---
+    lidar = LiDAR('/dev/ttyUSB0')
     await lidar.connect()
-    await asyncio.sleep(1.0)
     lidar.start(asyncio.get_running_loop())
 
-    running_map = RunningMap(grid_size=200, cell_size_cm=5, max_distance_mm=6000)
+    # --- Initialize running map ---
+    running_map = RunningMap(grid_size=400, cell_size_cm=5, max_distance_mm=6000)
 
-    return controller, odom, lidar, running_map
+    # --- Start fusion loop ---
+    asyncio.create_task(fusion_loop(lidar, odom, running_map))
+    asyncio.create_task(capture_heatmap_loop(running_map))  # optional intermediate saves
 
-def main():
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    controller = odom = lidar = running_map = None
-    tasks = []
-
+    # --- Example autonomous routine ---
     try:
-        controller, odom, lidar, running_map = loop.run_until_complete(setup())
+        for i in range(50):
+            print(f"Step {i+1}: move forward 10 cm")
+            await controller.forward_cm(10)
+            await asyncio.sleep(0.1)
 
-        tasks.extend([
-            loop.create_task(fusion_loop(lidar, odom, running_map)),
-            loop.create_task(motion_script(controller)),
-            loop.create_task(save_map_frames(running_map, interval=1.0))
-        ])
-
-        print("[System] running — Ctrl+C to stop")
-        loop.run_forever()
+            print(f"Step {i+1}: turn 15 deg CCW")
+            await controller.turn_deg(15)
+            await asyncio.sleep(0.1)
 
     except KeyboardInterrupt:
-        print("\n[System] shutdown requested")
+        print("User interrupted")
 
     finally:
-        print("[System] cleaning up...")
-        for t in tasks:
-            t.cancel()
-        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-        if lidar:
-            loop.run_until_complete(lidar.stop())
-        if controller:
-            loop.run_until_complete(controller.stop())
-        if odom:
-            odom.stop()
+        # --- Cleanup ---
+        print("Stopping...")
+        await lidar.stop()
+        await controller.stop()
+        odom.stop()
 
-        os.makedirs("outputs", exist_ok=True)
-        final_path = "outputs/map_final.png"
+        # --- Save final clean heatmap ---
+        final_path = os.path.join(OUTPUT_DIR, "map_final.png")
         running_map.save_heatmap(final_path)
-        print(f"[Map] final saved → {final_path}")
-
-        loop.stop()
-        loop.close()
-        print("[System] exited cleanly")
+        print(f"Final heatmap saved: {final_path}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
