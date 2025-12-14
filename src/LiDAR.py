@@ -25,7 +25,7 @@ class LiDAR:
                         pass
                     self.lidar = None
                 
-                # **KEY FIX**: Close any lingering serial connections
+                # Close any lingering serial connections
                 try:
                     ser = serial.Serial(self.port)
                     ser.close()
@@ -35,18 +35,28 @@ class LiDAR:
                 
                 # Initialize with shorter timeout initially
                 self.lidar = RPLidar(None, self.port, timeout=1)
-                time.sleep(1)  # Give device time to stabilize
+                time.sleep(1)
                 
                 # Stop any running motor/scan first
-                self.lidar.stop()
-                self.lidar.stop_motor()
+                try:
+                    self.lidar.stop()
+                    self.lidar.stop_motor()
+                except Exception:
+                    pass
                 time.sleep(0.5)
                 
-                # Get device info to verify connection
-                info = self.lidar.get_info()
-                print(f"LiDAR connected: {info}")
+                # Try to get device info if available (not critical)
+                try:
+                    if hasattr(self.lidar, 'get_info'):
+                        info = self.lidar.get_info()
+                        print(f"LiDAR connected: {info}")
+                    elif hasattr(self.lidar, 'info'):
+                        info = self.lidar.info
+                        print(f"LiDAR connected: {info}")
+                except Exception as e:
+                    print(f"Could not get device info (non-critical): {e}")
                 
-                # Start fresh
+                # Start motor
                 self.lidar.start_motor()
                 time.sleep(1)
                 
@@ -69,7 +79,7 @@ class LiDAR:
                     except Exception:
                         pass
                     self.lidar = None
-                time.sleep(2)  # Longer wait between retries
+                time.sleep(2)
         
         raise Exception("Failed to initialize LiDAR after maximum retries")
 
@@ -82,7 +92,6 @@ class LiDAR:
             for scan in self.lidar.iter_scans():
                 scan_data = [0] * 360
                 for (_, angle, distance) in scan:
-                    # Filter out invalid readings
                     if distance > 0 and distance < self.max_distance:
                         idx = min(359, int(floor(angle)))
                         scan_data[idx] = distance
@@ -134,12 +143,23 @@ class LiDAR:
         return x, y
 
     def info(self):
-        return self.lidar.get_info()
+        """Get device info if available."""
+        try:
+            if hasattr(self.lidar, 'get_info'):
+                return self.lidar.get_info()
+            elif hasattr(self.lidar, 'info'):
+                return self.lidar.info
+            else:
+                return "Info method not available"
+        except Exception as e:
+            return f"Error getting info: {e}"
 
     def stop(self):
+        """Stop the LiDAR and clean up."""
         try:
-            self.lidar.stop()
-            self.lidar.stop_motor()
-            self.lidar.disconnect()
-        except Exception:
-            pass
+            if self.lidar:
+                self.lidar.stop()
+                self.lidar.stop_motor()
+                self.lidar.disconnect()
+        except Exception as e:
+            print(f"Error during stop: {e}")
