@@ -16,6 +16,7 @@ gps = "*"
 pygame = "*"
 pillow = "*"
 odrive = "==0.6.10.post0"
+tensorflow = "*"
 
 [scripts]
 main = "python src/main.py"
@@ -27,6 +28,8 @@ gps = "python testing/gps_test.py"
 aio = "python testing/asyncio-test.py"
 r2d2 = "python testing/R2D2-LiDAR.py"
 matplot = "python testing/lidar-matplot.py"
+rssi = "python src/live_rssi.py"
+main_rssi = "python src/main_RSSI.py"
 gif = "python testing/image-to-gif.py"
 
 [dev-packages]

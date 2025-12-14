@@ -1,4 +1,5 @@
 import asyncio
+import signal
 import os
 import time
 from LiDAR import LiDAR
