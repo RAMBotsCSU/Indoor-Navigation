@@ -16,6 +16,7 @@ gps = "*"
 pygame = "*"
 pillow = "*"
 odrive = "==0.6.10.post0"
+tensorflow = "*"
 
 [scripts]
 main = "python src/main.py"
