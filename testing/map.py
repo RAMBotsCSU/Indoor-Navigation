@@ -221,6 +221,6 @@ if __name__ == "__main__":
 
     bbox = (40.57521493599895, 40.57590353282978, -105.08415316215739, -105.0821656452189)
 
-    view = GPSMapViewer("bldg-map.png", bbox)
+    view = GPSMapViewer("include/engrbase1.png", bbox)
     view.show()
     sys.exit(app.exec())
