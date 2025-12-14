@@ -64,6 +64,18 @@ class LiDAR:
         self._thread = threading.Thread(target=self._scan_loop, daemon=True)
         self._thread.start()
 
+    def _enqueue(self, item):
+        """Runs on loop thread: drop oldest if full, then enqueue."""
+        if self.queue.full():
+            try:
+                self.queue.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+        try:
+            self.queue.put_nowait(item)
+        except asyncio.QueueFull:
+            pass
+
     def _scan_loop(self):
         """Read measurements from LiDAR and push to asyncio queue"""
         print("LiDAR scanning thread started")
@@ -78,10 +90,8 @@ class LiDAR:
 
                 ts = time.monotonic()
                 try:
-                    self._loop.call_soon_threadsafe(
-                        self.queue.put_nowait, (ts, angle, distance)
-                    )
-                except asyncio.QueueFull:
+                    self._loop.call_soon_threadsafe(self._enqueue, (ts, angle, distance))
+                except Exception:
                     pass
 
                 # Print a few points to confirm

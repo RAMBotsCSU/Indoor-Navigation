@@ -17,12 +17,12 @@ async def fusion_loop(lidar, odom, running_map, max_age_sec=0.25, drain_threshol
             continue
 
         # trim backlog if queue is getting full
-        try:
-            if lidar.queue.qsize() > lidar.queue.maxsize * drain_threshold:
-                while lidar.queue.qsize() > lidar.queue.maxsize * 0.5:
+        if lidar.queue.qsize() > lidar.queue.maxsize * drain_threshold:
+            while lidar.queue.qsize() > lidar.queue.maxsize * 0.5:
+                try:
                     lidar.queue.get_nowait()
-        except Exception:
-            pass
+                except asyncio.QueueEmpty:
+                    break
 
         pose = odom.interpolate(ts)
         running_map.integrate_point(angle, dist, pose)
