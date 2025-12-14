@@ -12,74 +12,94 @@ class LiDAR:
         self.lidar = None
         self._initialize()
 
+    def _reset_serial_port(self):
+        """Completely reset the serial port."""
+        try:
+            # Try to open and close the port to reset it
+            ser = serial.Serial(self.port, baudrate=115200)
+            ser.close()
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"Serial reset warning: {e}")
+
     def _initialize(self):
         """Initialize LiDAR with retry logic to handle descriptor errors."""
         for attempt in range(self.max_retries):
             try:
+                print(f"Attempting LiDAR initialization (attempt {attempt + 1})...")
+                
                 # Clean up any existing connection
                 if self.lidar is not None:
                     try:
                         self.lidar.stop()
+                        self.lidar.stop_motor()
                         self.lidar.disconnect()
                     except Exception:
                         pass
                     self.lidar = None
+                    time.sleep(1)
                 
-                # Close any lingering serial connections
+                # Reset the serial port
+                self._reset_serial_port()
+                
+                # Initialize RPLidar
+                self.lidar = RPLidar(None, self.port, timeout=3)
+                time.sleep(0.5)
+                
+                # **KEY FIX**: Reset the device to clear any corrupt state
                 try:
-                    ser = serial.Serial(self.port)
-                    ser.close()
+                    self.lidar.reset()
+                    time.sleep(2)  # Device needs time after reset
+                except AttributeError:
+                    # reset() might not be available in all versions
+                    print("Reset method not available, continuing...")
+                except Exception as e:
+                    print(f"Reset failed (non-critical): {e}")
+                
+                # Clear the device by stopping everything
+                try:
+                    self.lidar.stop()
+                    time.sleep(0.5)
+                    self.lidar.stop_motor()
                     time.sleep(0.5)
                 except Exception:
                     pass
                 
-                # Initialize with shorter timeout initially
-                self.lidar = RPLidar(None, self.port, timeout=1)
-                time.sleep(1)
-                
-                # Stop any running motor/scan first
+                # **Clear serial buffer to remove any corrupt data**
                 try:
-                    self.lidar.stop()
-                    self.lidar.stop_motor()
+                    self.lidar._serial.reset_input_buffer()
+                    self.lidar._serial.reset_output_buffer()
                 except Exception:
                     pass
-                time.sleep(0.5)
                 
-                # Try to get device info if available (not critical)
-                try:
-                    if hasattr(self.lidar, 'get_info'):
-                        info = self.lidar.get_info()
-                        print(f"LiDAR connected: {info}")
-                    elif hasattr(self.lidar, 'info'):
-                        info = self.lidar.info
-                        print(f"LiDAR connected: {info}")
-                except Exception as e:
-                    print(f"Could not get device info (non-critical): {e}")
-                
-                # Start motor
+                # Start fresh
                 self.lidar.start_motor()
-                time.sleep(1)
+                time.sleep(2)  # Give motor time to spin up
                 
-                # Verify with quick test scan
-                test_scan = None
+                # Attempt to get a clean scan
+                print("Waiting for clean scan data...")
+                scan_count = 0
                 for scan in self.lidar.iter_scans():
-                    test_scan = scan
-                    break
-                
-                if test_scan is not None:
-                    print(f"LiDAR initialized successfully on attempt {attempt + 1}")
-                    return
+                    if scan and len(scan) > 0:
+                        scan_count += 1
+                        print(f"Received scan with {len(scan)} points")
+                        if scan_count >= 2:  # Wait for 2 good scans
+                            print(f"LiDAR initialized successfully on attempt {attempt + 1}")
+                            return
                     
             except Exception as e:
                 print(f"LiDAR init attempt {attempt + 1} failed: {e}")
                 if self.lidar:
                     try:
                         self.lidar.stop()
+                        self.lidar.stop_motor()
                         self.lidar.disconnect()
                     except Exception:
                         pass
                     self.lidar = None
-                time.sleep(2)
+                
+                # Longer wait between retries, especially after "wrong body size"
+                time.sleep(3)
         
         raise Exception("Failed to initialize LiDAR after maximum retries")
 
@@ -160,6 +180,7 @@ class LiDAR:
             if self.lidar:
                 self.lidar.stop()
                 self.lidar.stop_motor()
+                time.sleep(0.5)
                 self.lidar.disconnect()
         except Exception as e:
             print(f"Error during stop: {e}")
