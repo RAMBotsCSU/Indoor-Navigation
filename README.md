@@ -50,4 +50,10 @@ Early Heatmap Testing Results:
 --------------------------------
 - For offline programming we used old data capture for our LiDAR sensor, scaled down the data, and converted to a time-based heatmap.
 
+Here's some early heatmap testing with some old LiDAR data to test the averaging function properly.
+
 ![Heatmap gif of images](include/output.gif)
+
+But after some cleanup and deployment on the robot, here's the a proper output.
+
+![Heatmap gif of another set](include/output2.gif)

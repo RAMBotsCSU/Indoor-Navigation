@@ -11,7 +11,7 @@ from odrive.enums import (
 WHEEL_RADIUS_CM = 15.5        # wheel radius
 WHEEL_BASE_CM = 59.0          # distance between wheels
 GEAR_RATIO = 1.0              # motor-to-wheel turns
-POS_TOL = 0.005               # position tolerance in turns
+POS_TOL = 0.05               # position tolerance in turns
 TIMEOUT_SEC = 8.0             # max wait per motion
 
 WHEEL_CIRCUMFERENCE_CM = 2 * math.pi * WHEEL_RADIUS_CM

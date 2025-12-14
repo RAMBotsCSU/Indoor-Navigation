@@ -7,7 +7,7 @@ from OdometryEstimator import OdometryEstimator
 from RunningMap import RunningMap
 
 OUTPUT_DIR = "outputs"
-CAPTURE_INTERVAL = 1.0  # seconds
+CAPTURE_INTERVAL = 2.0  # seconds
 
 async def fusion_loop(lidar, odom, running_map):
     """Continuously integrate LiDAR points into the map."""
@@ -44,18 +44,17 @@ async def main():
     lidar.start(asyncio.get_running_loop())
 
     # --- Initialize running map ---
-    running_map = RunningMap(grid_size=400, cell_size_cm=5, max_distance_mm=6000)
+    running_map = RunningMap(grid_size=400, cell_size_cm=5, max_distance_mm=4000)
 
     # --- Start fusion loop ---
     asyncio.create_task(fusion_loop(lidar, odom, running_map))
     asyncio.create_task(capture_heatmap_loop(running_map))  # optional intermediate saves
 
-    # --- Example autonomous routine ---
     try:
         for i in range(50):
             print(f"Step {i+1}: move forward 50 cm")
             await controller.forward_cm(50)
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.05)
 
     except KeyboardInterrupt:
         print("User interrupted")
