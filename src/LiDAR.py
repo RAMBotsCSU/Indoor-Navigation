@@ -1,6 +1,7 @@
 from adafruit_rplidar import RPLidar
 from math import cos, sin, pi, floor
 import time
+import serial
 
 class LiDAR:    
     def __init__(self, port='/dev/ttyUSB0', max_distance=6000, max_retries=3):
@@ -22,11 +23,34 @@ class LiDAR:
                         self.lidar.disconnect()
                     except Exception:
                         pass
+                    self.lidar = None
                 
-                self.lidar = RPLidar(None, self.port, timeout=3)
+                # **KEY FIX**: Close any lingering serial connections
+                try:
+                    ser = serial.Serial(self.port)
+                    ser.close()
+                    time.sleep(0.5)
+                except Exception:
+                    pass
+                
+                # Initialize with shorter timeout initially
+                self.lidar = RPLidar(None, self.port, timeout=1)
+                time.sleep(1)  # Give device time to stabilize
+                
+                # Stop any running motor/scan first
+                self.lidar.stop()
+                self.lidar.stop_motor()
                 time.sleep(0.5)
                 
-                # Verify connection by attempting a test scan
+                # Get device info to verify connection
+                info = self.lidar.get_info()
+                print(f"LiDAR connected: {info}")
+                
+                # Start fresh
+                self.lidar.start_motor()
+                time.sleep(1)
+                
+                # Verify with quick test scan
                 test_scan = None
                 for scan in self.lidar.iter_scans():
                     test_scan = scan
@@ -35,9 +59,17 @@ class LiDAR:
                 if test_scan is not None:
                     print(f"LiDAR initialized successfully on attempt {attempt + 1}")
                     return
+                    
             except Exception as e:
                 print(f"LiDAR init attempt {attempt + 1} failed: {e}")
-                time.sleep(1)
+                if self.lidar:
+                    try:
+                        self.lidar.stop()
+                        self.lidar.disconnect()
+                    except Exception:
+                        pass
+                    self.lidar = None
+                time.sleep(2)  # Longer wait between retries
         
         raise Exception("Failed to initialize LiDAR after maximum retries")
 
@@ -48,16 +80,16 @@ class LiDAR:
         """
         try:
             for scan in self.lidar.iter_scans():
-                # each scan is iterable of (quality, angle, distance) tuples
                 scan_data = [0] * 360
                 for (_, angle, distance) in scan:
-                    idx = min(359, int(floor(angle)))
-                    scan_data[idx] = distance
+                    # Filter out invalid readings
+                    if distance > 0 and distance < self.max_distance:
+                        idx = min(359, int(floor(angle)))
+                        scan_data[idx] = distance
                 self.scan_data = scan_data
                 return scan_data
         except Exception as e:
             print(f"LiDAR scan error: {e}")
-            # Attempt recovery
             try:
                 self._initialize()
             except Exception as recovery_error:
@@ -76,12 +108,12 @@ class LiDAR:
                     break
                 scan_data = [0] * 360
                 for (_, angle, distance) in scan:
-                    idx = min(359, int(floor(angle)))
-                    scan_data[idx] = distance
+                    if distance > 0 and distance < self.max_distance:
+                        idx = min(359, int(floor(angle)))
+                        scan_data[idx] = distance
                 scans.append(scan_data)
         except Exception as e:
             print(f"LiDAR error: {e}")
-            # Attempt recovery
             try:
                 self._initialize()
             except Exception as recovery_error:
@@ -107,6 +139,7 @@ class LiDAR:
     def stop(self):
         try:
             self.lidar.stop()
+            self.lidar.stop_motor()
             self.lidar.disconnect()
         except Exception:
             pass
