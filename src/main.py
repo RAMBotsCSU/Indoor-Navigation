@@ -1,57 +1,63 @@
-import sys
 import asyncio
-import os
 import signal
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import QTimer
+import os
+import time
 
 from LiDAR import LiDAR
 from RobotController import RobotController
 from OdometryEstimator import OdometryEstimator
 from RunningMap import RunningMap
-from RobotMonitor import RobotMonitor
 
 
-# ---------------------------------------------------------
-# Async background tasks
-# ---------------------------------------------------------
-
+# =========================
+# LiDAR → Odometry → Map
+# =========================
 async def fusion_loop(lidar, odom, running_map):
-    """Fuse LiDAR points with interpolated odometry."""
     while True:
         ts, angle, dist = await lidar.queue.get()
         pose = odom.interpolate(ts)
         running_map.integrate_point(angle, dist, pose)
 
 
+# =========================
+# Example robot motion
+# =========================
 async def motion_script(controller):
-    """Simple autonomous motion script."""
     try:
         while True:
-            await controller.forward_cm(50.0)
-            await asyncio.sleep(0.1)
-            #await controller.turn_deg(15.0)
-            #await asyncio.sleep(0.1)
+            print("Forward 10 cm")
+            await controller.forward_cm(10)
+            await asyncio.sleep(0.2)
+
+            print("Turn 15 deg")
+            await controller.turn_deg(15)
+            await asyncio.sleep(0.2)
     except asyncio.CancelledError:
-        pass
+        print("[Motion] stopped")
 
 
-async def autosave_heatmap(running_map, interval_s=5, out_dir="outputs"):
+# =========================
+# Periodic map capture
+# =========================
+async def save_map_frames(running_map, interval=1.0, out_dir="outputs"):
     os.makedirs(out_dir, exist_ok=True)
-    idx = 0
+    frame = 0
+
     while True:
-        idx += 1
-        path = os.path.join(out_dir, f"map_{idx:04d}.png")
+        await asyncio.sleep(interval)
+        frame += 1
+
+        path = os.path.join(out_dir, f"map_{frame:04d}.png")
         running_map.save_heatmap(path)
-        await asyncio.sleep(interval_s)
+
+        print(f"[Map] saved {path}")
 
 
-# ---------------------------------------------------------
-# Async initialization
-# ---------------------------------------------------------
-
-async def async_setup(loop):
-    # --- Motion Controller ---
+# =========================
+# Setup all subsystems
+# =========================
+async def setup():
+    # --- Motion controller ---
     controller = RobotController()
     await controller.connect()
     await controller.enable()
@@ -64,7 +70,8 @@ async def async_setup(loop):
     # --- LiDAR ---
     lidar = LiDAR("/dev/ttyUSB0")
     await lidar.connect()
-    lidar.start(loop)
+    await asyncio.sleep(1.0)
+    lidar.start(asyncio.get_running_loop())
 
     # --- Map ---
     running_map = RunningMap(
@@ -73,76 +80,64 @@ async def async_setup(loop):
         max_distance_mm=6000
     )
 
-    # --- Background tasks ---
-    tasks = [
-        asyncio.create_task(fusion_loop(lidar, odom, running_map)),
-        asyncio.create_task(motion_script(controller)),
-        asyncio.create_task(autosave_heatmap(running_map)),
-    ]
-
-    return controller, odom, lidar, running_map, tasks
+    return controller, odom, lidar, running_map
 
 
-# ---------------------------------------------------------
-# Main (Qt thread)
-# ---------------------------------------------------------
-
+# =========================
+# Main entry
+# =========================
 def main():
-    # --- Qt App (MUST be main thread) ---
-    app = QApplication(sys.argv)
+    # Allow Ctrl+C to work properly
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
 
-    # --- Asyncio loop ---
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
-    # --- Setup ---
-    controller, odom, lidar, running_map, tasks = loop.run_until_complete(
-        async_setup(loop)
-    )
+    controller = odom = lidar = running_map = None
+    tasks = []
 
-    # --- UI ---
-    ui = RobotMonitor(odom, running_map)
-    ui.show()
+    try:
+        controller, odom, lidar, running_map = loop.run_until_complete(setup())
 
-    # --- Drive asyncio loop from Qt ---
-    def pump_asyncio():
-        loop.call_soon(loop.stop)
+        tasks.extend([
+            loop.create_task(fusion_loop(lidar, odom, running_map)),
+            loop.create_task(motion_script(controller)),
+            loop.create_task(save_map_frames(running_map, interval=1.0))
+        ])
+
+        print("[System] running — Ctrl+C to stop")
         loop.run_forever()
 
-    timer = QTimer()
-    timer.timeout.connect(pump_asyncio)
-    timer.start(10)  # 100 Hz event pumping
+    except KeyboardInterrupt:
+        print("\n[System] shutdown requested")
 
-    # --- Clean shutdown ---
-    def shutdown():
-        print("Shutting down...")
-        timer.stop()
+    finally:
+        print("[System] cleaning up...")
 
         for t in tasks:
             t.cancel()
 
-        loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+        loop.run_until_complete(
+            asyncio.gather(*tasks, return_exceptions=True)
+        )
 
-        loop.run_until_complete(lidar.stop())
-        loop.run_until_complete(controller.stop())
-        odom.stop()
+        if lidar:
+            loop.run_until_complete(lidar.stop())
+        if controller:
+            loop.run_until_complete(controller.stop())
+        if odom:
+            odom.stop()
 
-        final_path = os.path.join("outputs", "map_final.png")
+        # Save final map
+        os.makedirs("outputs", exist_ok=True)
+        final_path = "outputs/map_final.png"
         running_map.save_heatmap(final_path)
-        print(f"[Saved] {final_path}")
+        print(f"[Map] final saved → {final_path}")
 
         loop.stop()
         loop.close()
+        print("[System] exited cleanly")
 
-    app.aboutToQuit.connect(shutdown)
-    signal.signal(signal.SIGINT, lambda *_: app.quit())
-
-    sys.exit(app.exec())
-
-
-# ---------------------------------------------------------
-# Entry
-# ---------------------------------------------------------
 
 if __name__ == "__main__":
     main()
