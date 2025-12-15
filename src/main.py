@@ -9,14 +9,14 @@ from OdometryEstimator import OdometryEstimator
 from RunningMap import RunningMap
 
 OUTPUT_DIR = "outputs"
-CAPTURE_INTERVAL = 0.5  # seconds
+CAPTURE_INTERVAL = 0.25  # seconds
 
 async def fusion_loop(lidar, odom, running_map):
     """Continuously integrate LiDAR points into the map."""
     while True:
         ts, angle, dist = await lidar.queue.get()
-        pose = odom.interpolate(ts)
-        print(f"Pose: x={pose[0]:.2f}, y={pose[1]:.2f}, th={math.degrees(pose[2]):.1f}°")
+        pose = odom.pose()  # Use current pose instead of interpolated
+        #print(f"Pose: x={pose[0]:.2f}, y={pose[1]:.2f}, th={math.degrees(pose[2]):.1f}°")
         running_map.integrate_point(angle, dist, pose)
 
 async def capture_heatmap_loop(running_map, interval=CAPTURE_INTERVAL):
@@ -42,7 +42,7 @@ async def main():
     await controller.enable()
 
     # --- Initialize LiDAR ---
-    lidar = LiDAR('/dev/ttyUSB0')
+    lidar = LiDAR('/dev/ttyUSB0', time_offset_ms=50)
     await lidar.connect()
     lidar.start(asyncio.get_running_loop())
 
