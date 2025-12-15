@@ -2,14 +2,10 @@ import asyncio
 import signal
 import os
 import time
-import sys
-from PyQt6.QtWidgets import QApplication
-from qasync import QEventLoop, asyncSlot
 from LiDAR import LiDAR
 from RobotController import RobotController
 from OdometryEstimator import OdometryEstimator
 from RunningMap import RunningMap
-from MapVisualizer import MapVisualizerWindow
 
 OUTPUT_DIR = "outputs"
 CAPTURE_INTERVAL = 0.5  # seconds
@@ -50,10 +46,6 @@ async def main():
 
     # --- Initialize running map ---
     running_map = RunningMap(grid_size=400, cell_size_cm=5, max_distance_mm=4000)
-
-    # --- Create visualizer window ---
-    window = MapVisualizerWindow(running_map)
-    window.show()
 
     # --- Start fusion loop ---
     asyncio.create_task(fusion_loop(lidar, odom, running_map))
@@ -97,9 +89,4 @@ async def main():
         print(f"Overview map saved: {overview_path}")
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    loop = QEventLoop(app)
-    asyncio.set_event_loop(loop)
-    
-    with loop:
-        loop.run_until_complete(main())
+    asyncio.run(main())

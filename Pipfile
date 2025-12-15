@@ -17,7 +17,6 @@ pygame = "*"
 pillow = "*"
 odrive = "==0.6.10.post0"
 tensorflow = "*"
-qasync = "*"
 
 [scripts]
 main = "python src/main.py"
