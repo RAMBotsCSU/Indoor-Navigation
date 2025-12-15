@@ -32,10 +32,10 @@ async def main():
     # --- Initialize odometry ---
     odom = OdometryEstimator()
     await odom.connect()
-    asyncio.create_task(odom.start(rate_hz=50))
+    asyncio.create_task(odom.start(rate_hz=200))
 
     # --- Initialize robot controller ---
-    controller = RobotController()
+    controller = RobotController(update_rate_hz=50)
     await controller.connect()
     await controller.enable()
 
@@ -53,7 +53,7 @@ async def main():
 
     try:
         print(f"Trial 3: Two Turns Around Two Corners")
-        await controller.forward_cm(305)
+        await controller.forward_cm(336)
         await asyncio.sleep(0.05)
         await controller.turn_deg(90)
         await asyncio.sleep(0.05)
@@ -61,7 +61,7 @@ async def main():
         await asyncio.sleep(0.05)
         await controller.turn_deg(90)
         await asyncio.sleep(0.05)
-        await controller.forward_cm(305)
+        await controller.forward_cm(336)
 
     except KeyboardInterrupt:
         print("User interrupted")

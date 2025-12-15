@@ -26,13 +26,13 @@ def nearest_cell(x_cm, y_cm, cell_xy_map_units, map_units_to_cm):
 
 
 async def setup(map_units_to_cm=100.0):
-    controller = RobotController()
+    controller = RobotController(update_rate_hz=50)
     await controller.connect()
     await controller.enable()
 
     odom = OdometryEstimator()
     await odom.connect()
-    asyncio.create_task(odom.start(rate_hz=50))
+    asyncio.create_task(odom.start(rate_hz=200))
 
     pose_provider = PoseProvider(odom, map_units_to_cm=map_units_to_cm)
     pose_provider.set_mode("rssi_ml")
