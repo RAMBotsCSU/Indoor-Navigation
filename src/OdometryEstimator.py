@@ -74,15 +74,14 @@ class OdometryEstimator:
 
         self.last0 = p0
         self.last1 = p1
-
-        # convert to cm
-        # axis0 spins opposite of axis1 for forward motion
-        dL = (-d0 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE  # flip sign for forward
-        dR = (d1 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE
+        
+        # wheel displacements (cm)
+        dL = (d0 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE  # Remove the negative
+        dR = (-d1 / GEAR_RATIO) * WHEEL_CIRCUMFERENCE  # Add negative here instead
 
         # center displacement and rotation
         d_center = (dL + dR) / 2.0
-        d_theta = (dR - dL) / (2.0 * WHEEL_BASE)  # DIVIDE BY 2*WHEEL_BASE, not just WHEEL_BASE
+        d_theta = (dR - dL) / (2.0 * WHEEL_BASE)
 
         # integrate pose
         self.x += d_center * math.cos(self.th + d_theta / 2.0)
