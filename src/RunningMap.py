@@ -31,7 +31,7 @@ class RunningMap:
         cx = self.grid_size // 2
         cy = self.grid_size // 2
         gx = int(cx + wx / self.cell_size_cm)
-        gy = int(cy + wy / self.cell_size_cm)
+        gy = int(cy - wy / self.cell_size_cm)
         return gx, gy
 
     def _is_valid(self, gx, gy):
