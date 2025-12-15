@@ -13,18 +13,20 @@ WHEEL_BASE_CM = 59.0          # distance between wheels
 GEAR_RATIO = 1.0              # motor-to-wheel turns
 POS_TOL = 0.05               # position tolerance in turns
 TIMEOUT_SEC = 8.0             # max wait per motion
+MAX_VELOCITY_TURNS_PER_SEC = 2.0  # max velocity in turns/sec
 
 WHEEL_CIRCUMFERENCE_CM = 2 * math.pi * WHEEL_RADIUS_CM
 
 
 class RobotController:
-    def __init__(self, verbose=False):
+    def __init__(self, verbose=False, max_velocity=MAX_VELOCITY_TURNS_PER_SEC):
         self.odrv = None
         self.axis0 = None
         self.axis1 = None
         self.last_pos0 = 0.0
         self.last_pos1 = 0.0
         self.verbose = verbose
+        self.max_velocity = max_velocity  # turns per second
 
     async def connect(self):
         loop = asyncio.get_event_loop()
@@ -48,22 +50,48 @@ class RobotController:
             print(f"Motors enabled, positions: {self.last_pos0}, {self.last_pos1}")
 
     async def _move_to(self, target0, target1, timeout=TIMEOUT_SEC):
-        self.axis0.controller.input_pos = target0
-        self.axis1.controller.input_pos = target1
-
         t0 = asyncio.get_event_loop().time()
+        last_update_time = t0
+        
         while True:
+            current_time = asyncio.get_event_loop().time()
+            dt = current_time - last_update_time
+            
             p0 = float(self.axis0.encoder.pos_estimate)
             p1 = float(self.axis1.encoder.pos_estimate)
-
-            if abs(p0 - target0) <= POS_TOL and abs(p1 - target1) <= POS_TOL:
+            
+            # Calculate remaining distance
+            delta0 = target0 - p0
+            delta1 = target1 - p1
+            
+            # Check if we've reached target
+            if abs(delta0) <= POS_TOL and abs(delta1) <= POS_TOL:
                 self.last_pos0 = p0
                 self.last_pos1 = p1
                 if self.verbose:
                     print(f"Reached targets: {p0:.3f}, {p1:.3f}")
                 return True
+            
+            # Limit velocity by capping position updates per cycle
+            if dt > 0:
+                max_step = self.max_velocity * dt
+                
+                # Clamp each axis to max velocity
+                delta0_clamped = max(-max_step, min(max_step, delta0))
+                delta1_clamped = max(-max_step, min(max_step, delta1))
+                
+                # Set intermediate target
+                input0 = p0 + delta0_clamped
+                input1 = p1 + delta1_clamped
+            else:
+                input0 = target0
+                input1 = target1
+            
+            self.axis0.controller.input_pos = input0
+            self.axis1.controller.input_pos = input1
+            last_update_time = current_time
 
-            if asyncio.get_event_loop().time() - t0 > timeout:
+            if current_time - t0 > timeout:
                 self.last_pos0 = p0
                 self.last_pos1 = p1
                 if self.verbose:
