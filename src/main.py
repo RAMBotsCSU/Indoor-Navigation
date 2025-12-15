@@ -35,7 +35,7 @@ async def main():
     asyncio.create_task(odom.start(rate_hz=200))
 
     # --- Initialize robot controller ---
-    controller = RobotController(update_rate_hz=50)
+    controller = RobotController(update_rate_hz=10)
     await controller.connect()
     await controller.enable()
 
