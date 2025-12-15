@@ -55,15 +55,15 @@ async def main():
 
     try:
         print(f"Trial 3: Two Turns Around Two Corners")
-        await controller.forward_cm_interpolated(336, speed_cm_s=100.0)
+        await controller.forward_cm_interpolated(336, speed_cm_s=200.0)
         await asyncio.sleep(0.05)
         await controller.turn_deg(90)
         await asyncio.sleep(0.05)
-        await controller.forward_cm_interpolated(1820, speed_cm_s=100.0)
+        await controller.forward_cm_interpolated(1820, speed_cm_s=200.0)
         await asyncio.sleep(0.05)
         await controller.turn_deg(90)
         await asyncio.sleep(0.05)
-        await controller.forward_cm_interpolated(336, speed_cm_s=100.0)
+        await controller.forward_cm_interpolated(336, speed_cm_s=200.0)
 
     except KeyboardInterrupt:
         print("User interrupted")
