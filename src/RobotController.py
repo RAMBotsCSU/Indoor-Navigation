@@ -106,3 +106,11 @@ class RobotController:
         self.axis1.controller.input_pos = p1
         if self.verbose:
             print(f"Stopped motors at {p0:.3f}, {p1:.3f}")
+
+    async def forward_cm_interpolated(self, distance_cm: float, speed_cm_s: float = 10.0):
+        """Move forward with interpolated speed using small steps."""
+        total_steps = max(1, int(abs(distance_cm) / speed_cm_s * 10))  # 10 updates per second
+        step_cm = distance_cm / total_steps
+        for _ in range(total_steps):
+            await self.forward_cm(step_cm)
+            await asyncio.sleep(0.1)  # 10 Hz update rate

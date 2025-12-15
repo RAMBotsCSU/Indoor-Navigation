@@ -2,6 +2,7 @@ import asyncio
 import signal
 import os
 import time
+import math
 from LiDAR import LiDAR
 from RobotController import RobotController
 from OdometryEstimator import OdometryEstimator
@@ -15,6 +16,7 @@ async def fusion_loop(lidar, odom, running_map):
     while True:
         ts, angle, dist = await lidar.queue.get()
         pose = odom.interpolate(ts)
+        print(f"Pose: x={pose[0]:.2f}, y={pose[1]:.2f}, th={math.degrees(pose[2]):.1f}°")
         running_map.integrate_point(angle, dist, pose)
 
 async def capture_heatmap_loop(running_map, interval=CAPTURE_INTERVAL):
@@ -35,7 +37,7 @@ async def main():
     asyncio.create_task(odom.start(rate_hz=200))
 
     # --- Initialize robot controller ---
-    controller = RobotController(update_rate_hz=10)
+    controller = RobotController(update_rate_hz=200)
     await controller.connect()
     await controller.enable()
 
@@ -53,15 +55,15 @@ async def main():
 
     try:
         print(f"Trial 3: Two Turns Around Two Corners")
-        await controller.forward_cm(336)
+        await controller.forward_cm_interpolated(336, speed_cm_s=10.0)
         await asyncio.sleep(0.05)
         await controller.turn_deg(90)
         await asyncio.sleep(0.05)
-        await controller.forward_cm(1820)
+        await controller.forward_cm_interpolated(1820, speed_cm_s=10.0)
         await asyncio.sleep(0.05)
         await controller.turn_deg(90)
         await asyncio.sleep(0.05)
-        await controller.forward_cm(336)
+        await controller.forward_cm_interpolated(336, speed_cm_s=10.0)
 
     except KeyboardInterrupt:
         print("User interrupted")

@@ -118,12 +118,3 @@ class OdometryEstimator:
 
         # If timestamp is newer than history
         return self.history[-1][1:]
-
-    def compute_pose(self, p0, p1, ts):
-        """Compute (x, y, theta) from encoder positions."""
-        # Convert encoder positions to distances
-        # Invert p0 (left wheel) since encoders have same orientation
-        delta_left = -(p0 - self.last_p0) * self.wheel_circumference_cm  # Added negative
-        delta_right = (p1 - self.last_p1) * self.wheel_circumference_cm
-
-        # ...existing code...
