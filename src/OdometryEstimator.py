@@ -82,7 +82,7 @@ class OdometryEstimator:
 
         # center displacement and rotation
         d_center = (dL + dR) / 2.0
-        d_theta = (dL - dR) / (WHEEL_BASE)
+        d_theta = (dR - dL) / (2.0 * WHEEL_BASE)  # DIVIDE BY 2*WHEEL_BASE, not just WHEEL_BASE
 
         # integrate pose
         self.x += d_center * math.cos(self.th + d_theta / 2.0)
