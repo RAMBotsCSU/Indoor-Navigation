@@ -2,13 +2,15 @@ import asyncio
 import signal
 import os
 import time
+import threading
 from LiDAR import LiDAR
 from RobotController import RobotController
 from OdometryEstimator import OdometryEstimator
 from RunningMap import RunningMap
+from MapVisualizer import run_visualizer
 
 OUTPUT_DIR = "outputs"
-CAPTURE_INTERVAL = 2.0  # seconds
+CAPTURE_INTERVAL = 0.5  # seconds
 
 async def fusion_loop(lidar, odom, running_map):
     """Continuously integrate LiDAR points into the map."""
@@ -47,6 +49,10 @@ async def main():
     # --- Initialize running map ---
     running_map = RunningMap(grid_size=400, cell_size_cm=5, max_distance_mm=4000)
 
+    # --- Start visualizer in separate thread ---
+    visualizer_thread = threading.Thread(target=run_visualizer, args=(running_map,), daemon=True)
+    visualizer_thread.start()
+
     # --- Start fusion loop ---
     asyncio.create_task(fusion_loop(lidar, odom, running_map))
     asyncio.create_task(capture_heatmap_loop(running_map))  # optional intermediate saves
@@ -55,11 +61,11 @@ async def main():
         print(f"Trial 3: Two Turns Around Two Corners")
         await controller.forward_cm(305)
         await asyncio.sleep(0.05)
-        await controller.turn_degrees(90)
+        await controller.turn_deg(90)
         await asyncio.sleep(0.05)
         await controller.forward_cm(1820)
         await asyncio.sleep(0.05)
-        await controller.turn_degrees(90)
+        await controller.turn_deg(90)
         await asyncio.sleep(0.05)
         await controller.forward_cm(305)
 
