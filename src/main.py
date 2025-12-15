@@ -47,7 +47,7 @@ async def main():
     lidar.start(asyncio.get_running_loop())
 
     # --- Initialize running map ---
-    running_map = RunningMap(grid_size=400, cell_size_cm=5, max_distance_mm=4000, lidar_mount_offset_deg=270)
+    running_map = RunningMap(grid_size=400, cell_size_cm=5, max_distance_mm=4000, lidar_mount_offset_deg=180)
 
     # --- Start fusion loop ---
     asyncio.create_task(fusion_loop(lidar, odom, running_map))
