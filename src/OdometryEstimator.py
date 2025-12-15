@@ -99,15 +99,14 @@ class OdometryEstimator:
         return self.x, self.y, self.th
 
     def interpolate(self, timestamp: float) -> Tuple[float, float, float]:
-        """
-        Interpolate pose at an arbitrary timestamp (for LiDAR fusion).
-        """
+        """Interpolate pose at an arbitrary timestamp (for LiDAR fusion)."""
         if len(self.history) < 2:
             return self.x, self.y, self.th
 
-        for i in range(len(self.history) - 1):
-            t0, x0, y0, th0 = self.history[i]
-            t1, x1, y1, th1 = self.history[i + 1]
+        # Search BACKWARDS through history (newest to oldest)
+        for i in range(len(self.history) - 1, 0, -1):
+            t1, x1, y1, th1 = self.history[i]
+            t0, x0, y0, th0 = self.history[i - 1]
 
             if t0 <= timestamp <= t1:
                 alpha = (timestamp - t0) / (t1 - t0)
@@ -116,5 +115,5 @@ class OdometryEstimator:
                 th = th0 + alpha * (th1 - th0)
                 return x, y, th
 
-        # If timestamp is newer than history
-        return self.history[-1][1:]
+        # If timestamp is older than all history, return oldest
+        return self.history[0][1:]
