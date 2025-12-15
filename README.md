@@ -29,17 +29,20 @@ Pipfile functions differently on linux since it's already on the path once you i
 Commands
 ---------
 
-| Command    | File                      |
-| :--------- | :------------------------ |
-| main       | navigation.py             |
-| lidar      | testing/LiDAR.py          |
-| mapping    | testing/LiDAR-mapping.py  |
-| odo        | testing/odometry-test.py  |
-| map        | testing/map.py            |
-| gps        | testing/gps_test.py       |
-| aio        | testing/asyncio-test.py   |
-| r2d2       | R2D2-LiDAR.py             |
-
+| Command    | File                               |
+| :--------- | :--------------------------------- |
+| main       | src/main.py                        |
+| lidar      | testing/LiDAR.py                   |
+| mapping    | testing/LiDAR-mapping.py           |
+| odo        | testing/odometry-test.py           |
+| map        | testing/map.py                     |
+| gps        | testing/gps_test.py                |
+| aio        | testing/asyncio-test.py            |
+| r2d2       | testing/R2D2-LiDAR.py              |
+| matplot    | testing/lidar-matplot.py           |
+| rssi       | src/live_rssi.py                   |
+| main_rssi  | src/main_RSSI.py                   |
+| gif        | testing/image-to-gif.py            |
 
 Progress
 =========
