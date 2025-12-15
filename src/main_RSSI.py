@@ -32,7 +32,7 @@ async def setup(map_units_to_cm=100.0):
 
     odom = OdometryEstimator()
     await odom.connect()
-    asyncio.create_task(odom.start(rate_hz=200))
+    asyncio.create_task(odom.start(rate_hz=50))
 
     pose_provider = PoseProvider(odom, map_units_to_cm=map_units_to_cm)
     pose_provider.set_mode("rssi_ml")

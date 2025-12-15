@@ -32,7 +32,7 @@ async def main():
     # --- Initialize odometry ---
     odom = OdometryEstimator()
     await odom.connect()
-    asyncio.create_task(odom.start(rate_hz=200))
+    asyncio.create_task(odom.start(rate_hz=50))
 
     # --- Initialize robot controller ---
     controller = RobotController()

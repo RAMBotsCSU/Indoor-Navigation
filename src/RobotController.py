@@ -18,13 +18,14 @@ WHEEL_CIRCUMFERENCE_CM = 2 * math.pi * WHEEL_RADIUS_CM
 
 
 class RobotController:
-    def __init__(self, verbose=False):
+    def __init__(self, verbose=False, update_rate_hz=200):
         self.odrv = None
         self.axis0 = None
         self.axis1 = None
         self.last_pos0 = 0.0
         self.last_pos1 = 0.0
         self.verbose = verbose
+        self.update_delay = 1.0 / update_rate_hz  # Convert Hz to seconds
 
     async def connect(self):
         loop = asyncio.get_event_loop()
@@ -70,7 +71,7 @@ class RobotController:
                     print(f"Timeout reached: {p0:.3f}, {p1:.3f}")
                 return False
 
-            await asyncio.sleep(0.005)
+            await asyncio.sleep(self.update_delay)  # Use configurable delay
 
     # Forward/backward movement
     async def forward_cm(self, distance_cm: float):
