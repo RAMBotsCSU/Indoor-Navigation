@@ -42,7 +42,7 @@ async def main():
     await controller.enable()
 
     # --- Initialize LiDAR ---
-    lidar = LiDAR('/dev/ttyUSB0', time_offset_ms=50)
+    lidar = LiDAR('/dev/ttyUSB0', time_offset_ms=0)
     await lidar.connect()
     lidar.start(asyncio.get_running_loop())
 
