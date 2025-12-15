@@ -1,7 +1,7 @@
 import sys
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, 
-                             QWidget, QSlider, QLabel, QPushButton, QComboBox)
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt6.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, 
+                             QWidget, QSlider, QLabel, QComboBox)
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 import numpy as np
 import matplotlib.pyplot as plt
