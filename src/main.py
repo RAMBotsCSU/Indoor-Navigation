@@ -52,10 +52,16 @@ async def main():
     asyncio.create_task(capture_heatmap_loop(running_map))  # optional intermediate saves
 
     try:
-        for i in range(50):
-            print(f"Step {i+1}: move forward 50 cm")
-            await controller.forward_cm(50)
-            await asyncio.sleep(0.05)
+        print(f"Trial 3: Two Turns Around Two Corners")
+        await controller.forward_cm(305)
+        await asyncio.sleep(0.05)
+        await controller.turn_degrees(90)
+        await asyncio.sleep(0.05)
+        await controller.forward_cm(1820)
+        await asyncio.sleep(0.05)
+        await controller.turn_degrees(90)
+        await asyncio.sleep(0.05)
+        await controller.forward_cm(305)
 
     except KeyboardInterrupt:
         print("User interrupted")
@@ -71,6 +77,16 @@ async def main():
         final_path = os.path.join(OUTPUT_DIR, "map_final.png")
         running_map.save_heatmap(final_path)
         print(f"Final heatmap saved: {final_path}")
+        
+        # --- Save binary occupancy map ---
+        binary_path = os.path.join(OUTPUT_DIR, "map_binary.png")
+        running_map.save_binary_map(binary_path, threshold=0.6)
+        print(f"Binary map saved: {binary_path}")
+        
+        # --- Save overview map ---
+        overview_path = os.path.join(OUTPUT_DIR, "map_overview.png")
+        running_map.save_overview_map(overview_path)
+        print(f"Overview map saved: {overview_path}")
 
 if __name__ == "__main__":
     asyncio.run(main())

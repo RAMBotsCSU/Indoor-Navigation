@@ -136,7 +136,7 @@ def main():
         "--goal",
         type=int,
         default=60,
-        help="Goal cell ID (0–60)"
+        help="Goal cell ID (0-60)"
     )
     args = parser.parse_args()
 
