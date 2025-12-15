@@ -85,7 +85,7 @@ class OdometryEstimator:
 
         # integrate pose
         self.x -= d_center * math.cos(self.th + d_theta / 2.0)
-        self.y -= d_center * math.sin(self.th + d_theta / 2.0)
+        self.y += d_center * math.sin(self.th + d_theta / 2.0)
         self.th += d_theta
 
         self.last_time = now

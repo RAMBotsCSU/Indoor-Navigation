@@ -9,7 +9,7 @@ from OdometryEstimator import OdometryEstimator
 from RunningMap import RunningMap
 
 OUTPUT_DIR = "outputs"
-CAPTURE_INTERVAL = 0.25  # seconds
+CAPTURE_INTERVAL = 0.10  # seconds
 
 async def fusion_loop(lidar, odom, running_map):
     """Continuously integrate LiDAR points into the map."""
@@ -55,15 +55,15 @@ async def main():
 
     try:
         print(f"Trial 3: Two Turns Around Two Corners")
-        await controller.forward_cm_interpolated(336, speed_cm_s=500.0)
+        await controller.forward_cm_interpolated(336, speed_cm_s=8000.0)
         await asyncio.sleep(0.05)
         await controller.turn_deg(90)
         await asyncio.sleep(0.05)
-        await controller.forward_cm_interpolated(1820, speed_cm_s=500.0)
+        await controller.forward_cm_interpolated(1820, speed_cm_s=800.0)
         await asyncio.sleep(0.05)
         await controller.turn_deg(90)
         await asyncio.sleep(0.05)
-        await controller.forward_cm_interpolated(336, speed_cm_s=500.0)
+        await controller.forward_cm_interpolated(336, speed_cm_s=8000.0)
 
     except KeyboardInterrupt:
         print("User interrupted")
