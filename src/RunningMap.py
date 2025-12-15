@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 class RunningMap:
     def __init__(self, grid_size=400, cell_size_cm=5, max_distance_mm=6000,
-                 occupied_inc=0.15, free_dec=0.05):
+                 occupied_inc=0.15, free_dec=0.05, lidar_mount_offset_deg=0):
         self.grid_size = grid_size
         self.cell_size_cm = cell_size_cm
         self.max_distance_mm = max_distance_mm
@@ -16,6 +16,9 @@ class RunningMap:
         # Probability update parameters
         self.occupied_inc = occupied_inc  # How much to increase probability when hit
         self.free_dec = free_dec          # How much to decrease probability when free
+
+        # LiDAR mounting offset (in radians)
+        self.lidar_mount_offset_rad = math.radians(lidar_mount_offset_deg)
 
         # Track min/max indices to crop final overview map
         self.min_gx = grid_size // 2
@@ -89,7 +92,8 @@ class RunningMap:
             return
 
         x_robot, y_robot, th = pose
-        angle = math.radians(angle_deg) + th
+        # Add LiDAR mounting offset to angle
+        angle = math.radians(angle_deg) + self.lidar_mount_offset_rad + th
         r = distance_mm / 10.0  # mm -> cm
 
         # Calculate endpoint (obstacle location)
