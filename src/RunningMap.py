@@ -117,6 +117,8 @@ class RunningMap:
         # Mark endpoint as occupied
         self._update_occupied(end_gx, end_gy)
 
+        print(f"Robot world: ({x_robot:.2f}, {y_robot:.2f}), LiDAR hit world: ({wx_end:.2f}, {wy_end:.2f}), grid: ({end_gx}, {end_gy})")
+
     def save_heatmap(self, path, normalize=True):
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         map_data = self.grid.copy()
