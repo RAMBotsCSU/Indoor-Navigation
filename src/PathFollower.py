@@ -96,7 +96,7 @@ class PathFollower:
                 await self.controller.stop()
                 return False
 
-            ok = await self.controller.forward_cm(distance)
+            ok = await self.controller.forward_cm_interpolated(distance, speed_cm_s=800.0)
             if not ok:
                 print("[ERROR] Forward failed, stopping")
                 await self.controller.stop()
